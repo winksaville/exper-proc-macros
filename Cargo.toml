@@ -1,0 +1,21 @@
+[package]
+name = "expr-proc-macros"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace]
+members = [
+    "derive-macro",
+]
+
+[[bin]]
+
+name = "proc-macros"
+path = "main.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+derive-macro = { path = "derive-macro" }
+
