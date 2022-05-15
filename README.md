@@ -2,12 +2,17 @@
 
 A workspace with experiments using rust proc-macros.
 
-Search: 
+Searches:
+
 https://www.google.com/search?q=rust+procedural+macros+tutorial&tbs=qdr:y
 
+ * https://ferrous-systems.com/blog/testing-proc-macros/ Good starter
  * https://blog.jetbrains.com/rust/2022/03/18/procedural-macros-under-the-hood-part-i/
  * https://blog.turbo.fish/proc-macro-basics/
- * https://ferrous-systems.com/blog/testing-proc-macros/
+
+https://www.google.com/search?q=rust+%22procedural%22+macros+dsl+example
+
+ * https://github.com/korken89/smlang-rs This is interesting as my goal is to create a sm-macro!
 
 ## Experimental Macros
 
