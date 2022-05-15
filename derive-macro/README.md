@@ -1,17 +1,6 @@
-# expr-proc-macros
+# derive-macro
 
-A workspace with experiments using rust proc-macros.
-
-Search: 
-https://www.google.com/search?q=rust+procedural+macros+tutorial&tbs=qdr:y
-
- * https://blog.jetbrains.com/rust/2022/03/18/procedural-macros-under-the-hood-part-i/
- * https://blog.turbo.fish/proc-macro-basics/
- * https://ferrous-systems.com/blog/testing-proc-macros/
-
-## Experimental Macros
-
-* [derive-macro](./derive-macro/README.md) located at [/derive-macro](/derive-macro/)
+A derive macro based on https://blog.logrocket.com/procedural-macros-in-rust/
 
 ## License
 
@@ -25,3 +14,4 @@ Licensed under either of
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in the work by you, as defined in the Apache-2.0 license, shall
 be dual licensed as above, without any additional terms or conditions.
+
