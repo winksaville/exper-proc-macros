@@ -17,9 +17,9 @@ pub fn describe(input: TokenStream) -> TokenStream {
             }
             syn::Fields::Unnamed(FieldsUnnamed { unnamed, .. }) => {
                 let num_fields = unnamed.iter().count();
-                format!( "a struct with these {} unamed fields", num_fields)
+                format!("a struct with these {} unamed fields", num_fields)
             }
-            syn::Fields::Unit => format!("a unit struct"),
+            syn::Fields::Unit => "a unit struct".to_string(),
         },
         syn::Data::Enum(DataEnum { variants, .. }) => {
             let vs = variants.iter().map(|v| &v.ident);
@@ -44,5 +44,3 @@ pub fn describe(input: TokenStream) -> TokenStream {
 
     output.into()
 }
-
-

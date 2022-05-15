@@ -5,5 +5,3 @@ use proc_macro::{self, TokenStream};
 pub fn verbatium(input: TokenStream) -> TokenStream {
     input
 }
-
-

@@ -26,7 +26,6 @@ union MyUnion {
     signed: i32,
 }
 
-
 fn main() {
     MyStruct::describe();
     MyTupleStruct::describe();
