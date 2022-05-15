@@ -3,6 +3,14 @@
 A first experiment with rust proc-macros.
 Based on https://blog.logrocket.com/procedural-macros-in-rust/
 
+Search: 
+* https://www.google.com/search?q=rust+procedural+macros+tutorial&tbs=qdr:y
+* https://blog.jetbrains.com/rust/2022/03/18/procedural-macros-under-the-hood-part-i/
+* https://blog.turbo.fish/proc-macro-basics/
+* https://ferrous-systems.com/blog/testing-proc-macros/
+
+
+
 ## Building and running
 
 
