@@ -12,6 +12,7 @@ https://www.google.com/search?q=rust+procedural+macros+tutorial&tbs=qdr:y
 ## Experimental Macros
 
 * [derive-macro](./derive-macro/README.md) located at [/derive-macro](/derive-macro/)
+* [verbatium-proc-macro](./verbatium-proc-macro/README.md) located at [/verbatium-proc-macro](/verbatium-proc-macro/)
 
 ## License
 

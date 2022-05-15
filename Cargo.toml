@@ -7,10 +7,12 @@ publish = false
 [workspace]
 members = [
     "derive-macro",
+    "verbatium-proc-macro"
 ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 derive-macro = { path = "derive-macro" }
+verbatium-proc-macro = { path = "verbatium-proc-macro" }
 

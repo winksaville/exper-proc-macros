@@ -1,4 +1,5 @@
 use derive_macro::Describe;
+use verbatium_proc_macro::verbatium;
 
 #[allow(unused)]
 #[derive(Describe)]
@@ -31,4 +32,6 @@ fn main() {
     MyTupleStruct::describe();
     MyEnum::describe();
     MyUnion::describe();
+
+    verbatium!(println!("hello, {}", "world"));
 }
