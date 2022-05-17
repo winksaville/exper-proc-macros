@@ -17,7 +17,7 @@ https://www.google.com/search?q=rust+%22procedural%22+macros+dsl+example
 ## Experimental Macros
 
 * [derive-macro](./derive-macro/README.md) located at [/derive-macro](/derive-macro/)
-* [verbatium-proc-macro](./verbatium-proc-macro/README.md) located at [/verbatium-proc-macro](/verbatium-proc-macro/)
+* [vertabim-proc-macro](./vertabim-proc-macro/README.md) located at [/vertabim-proc-macro](/vertabim-proc-macro/)
 
 ## License
 

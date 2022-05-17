@@ -1,4 +1,4 @@
-# verbatium-proc-macro
+# vertabim-proc-macro
 
 Shows the structure of how to create and use proc-macro. It is
 the simplest proc-macro I could think of that does something
@@ -6,10 +6,10 @@ with it's input TokenStream :)
 
 
 From [ferrous-systems testing-proc-macros](https://ferrous-systems.com/blog/testing-proc-macros/#tokenstream)
-Adding a `dbg!` is useful for debuggin, so I did with `verbatium!`:
+Adding a `dbg!` is useful for debuggin, so I did with `vertabim!`:
 ```
 #[proc_macro]
-pub fn verbatium(input: TokenStream) -> TokenStream {
+pub fn vertabim(input: TokenStream) -> TokenStream {
     dbg!(input)
 }
 ```
@@ -17,9 +17,9 @@ Yields the input stream in the compiler output, **NICE!**:
 ```
 wink@3900x 22-05-15T17:38:50.224Z:~/prgs/rust/myrepos/expr-proc-macros (main)
 $ cargo run --release
-   Compiling verbatium-proc-macro v0.1.0 (/home/wink/prgs/rust/myrepos/expr-proc-macros/verbatium-proc-macro)
+   Compiling vertabim-proc-macro v0.1.0 (/home/wink/prgs/rust/myrepos/expr-proc-macros/vertabim-proc-macro)
    Compiling expr-proc-macros v0.1.0 (/home/wink/prgs/rust/myrepos/expr-proc-macros)
-[verbatium-proc-macro/src/lib.rs:6] input = TokenStream [
+[vertabim-proc-macro/src/lib.rs:6] input = TokenStream [
     Ident {
         ident: "println",
         span: #0 bytes(556..563),

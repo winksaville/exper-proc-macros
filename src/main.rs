@@ -1,5 +1,5 @@
 use derive_macro::Describe;
-use verbatium_proc_macro::verbatium;
+use verbatim_proc_macro::verbatim;
 
 #[allow(unused)]
 #[derive(Describe)]
@@ -32,5 +32,5 @@ fn main() {
     MyEnum::describe();
     MyUnion::describe();
 
-    verbatium!(println!("hello, {}", "world"));
+    verbatim!(println!("hello, {}", "world"));
 }

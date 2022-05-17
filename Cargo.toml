@@ -8,12 +8,11 @@ license = "MIT OR Apache-2.0"
 [workspace]
 members = [
     "derive-macro",
-    "verbatium-proc-macro"
+    "verbatim-proc-macro",
 ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 derive-macro = { path = "derive-macro" }
-verbatium-proc-macro = { path = "verbatium-proc-macro" }
-
+verbatim-proc-macro = { path = "verbatim-proc-macro" }
