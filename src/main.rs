@@ -1,4 +1,5 @@
 use derive_macro::Describe;
+use expr_binary::expr_binary;
 use verbatim_proc_macro::verbatim;
 
 #[allow(unused)]
@@ -33,4 +34,5 @@ fn main() {
     MyUnion::describe();
 
     verbatim!(println!("hello, {}", "world"));
+    expr_binary!(a + b);
 }

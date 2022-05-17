@@ -9,6 +9,7 @@ license = "MIT OR Apache-2.0"
 members = [
     "derive-macro",
     "verbatim-proc-macro",
+    "expr-binary",
 ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -16,3 +17,4 @@ members = [
 [dependencies]
 derive-macro = { path = "derive-macro" }
 verbatim-proc-macro = { path = "verbatim-proc-macro" }
+expr-binary = { path = "expr-binary" }
