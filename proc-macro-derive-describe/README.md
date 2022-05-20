@@ -1,4 +1,4 @@
-# derive-macro
+# proc-macro-derive-describe
 
 A derive macro based on https://blog.logrocket.com/procedural-macros-in-rust/
 
