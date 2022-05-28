@@ -1,6 +1,12 @@
 # dbg-expr-binary
 
-Because ExprBinary doesn't `impl Debug` this won't compile:
+FIX: adding `exra-features` to `syn` dependencies fixes this:
+
+```
+syn = { version = "1.0", features = ["extra-traits", "full"] }
+```
+
+Previously without `extra-features` this failed:
 
 ```
 wink@3900x 22-05-17T17:37:03.620Z:~/prgs/rust/myrepos/expr-proc-macros (main)

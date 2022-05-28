@@ -1,6 +1,7 @@
 use proc_macro_derive_describe::Describe;
 use proc_macro_expr_binary::{expr_binary_dbg_working, expr_binary_swap_and_subtract};
 use proc_macro_verbatim::verbatim;
+use proc_macro_nesting::{outer, inner};
 
 #[allow(unused)]
 #[derive(Describe)]
@@ -53,4 +54,7 @@ fn main() {
     let res = expr_binary_swap_and_subtract!(a + b);
     println!("expr_binary_to_swap_and_substract: res={}", res);
     assert_eq!(b - a, res);
+
+    outer!();
+
 }

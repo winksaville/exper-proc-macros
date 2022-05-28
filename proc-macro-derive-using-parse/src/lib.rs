@@ -3,7 +3,7 @@ use quote::quote;
 use syn::{parse_macro_input, DataEnum, DataUnion, DeriveInput, FieldsNamed, FieldsUnnamed};
 
 #[proc_macro_derive(Describe)]
-pub fn describe(input: TokenStream) -> TokenStream {
+pub fn describe_using_parse(input: TokenStream) -> TokenStream {
     let DeriveInput { ident, data, .. } = parse_macro_input!(input);
 
     let description = match data {

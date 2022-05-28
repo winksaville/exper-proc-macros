@@ -8,13 +8,17 @@ license = "MIT OR Apache-2.0"
 [workspace]
 members = [
     "proc-macro-derive-describe",
+    "proc-macro-derive-using-parse",
     "proc-macro-verbatim",
     "proc-macro-expr-binary",
+    "proc-macro-nesting",
 ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 proc-macro-derive-describe = { path = "proc-macro-derive-describe" }
+proc-macro-derive-using-parse = { path = "proc-macro-derive-using-parse" }
 proc-macro-verbatim = { path = "proc-macro-verbatim" }
 proc-macro-expr-binary = { path = "proc-macro-expr-binary" }
+proc-macro-nesting = { path = "proc-macro-nesting" }
