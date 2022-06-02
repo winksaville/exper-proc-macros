@@ -6,7 +6,7 @@ use syn::{parse_macro_input, ExprBinary};
 #[proc_macro]
 pub fn expr_binary_dbg_working(input: TokenStream) -> TokenStream {
     let _expr: ExprBinary = parse_macro_input!(input as ExprBinary);
-    dbg!(_expr);
+    //dbg!(_expr);
 
     // Just return an empty TokenStream this is just a dbg! test.
     TokenStream::default()
