@@ -7,7 +7,8 @@ use quote::quote;
 pub fn inner_using_outer_declarations(_input: TokenStream) -> TokenStream {
     quote!(
         println!("inner_using_outer_declarations: a={}, b={}, {}+{}={}", a, b, a, b, a + b);
-    ).into()
+    )
+    .into()
 }
 
 #[proc_macro]
@@ -20,8 +21,16 @@ pub fn inner_creating_own_scope_using_no_outer_declarations(_input: TokenStream)
         fn add(l: i32, r: i32) -> i32 {
             l + r
         }
-        println!("inner_creating_own_scope_using_no_outer_declarations: a={}, b={}, {}+{}={}", a, b, a, b, add(a, b));
-    }).into()
+        println!(
+            "inner_creating_own_scope_using_no_outer_declarations: a={}, b={}, {}+{}={}",
+            a,
+            b,
+            a,
+            b,
+            add(a, b)
+        );
+    })
+    .into()
 }
 
 #[proc_macro]
@@ -54,7 +63,9 @@ pub fn inner_replacing_outer_scope_declaractions_using_braces(_input: TokenStrea
 }
 
 #[proc_macro]
-pub fn inner_replacing_outer_scope_declaractions_using_square_brackets(_input: TokenStream) -> TokenStream {
+pub fn inner_replacing_outer_scope_declaractions_using_square_brackets(
+    _input: TokenStream,
+) -> TokenStream {
     let add_ident = Ident::new("add", Span::def_site());
     quote![
         let a = 7;
@@ -73,7 +84,7 @@ pub fn inner_replacing_outer_scope_declaractions_using_square_brackets(_input: T
 // above macros.
 #[proc_macro]
 pub fn outer(_input: TokenStream) -> TokenStream {
-    let q = quote!{
+    let q = quote! {
         let a = 10;
         let b = 20;
         println!("outer: a={}, b={}, {}*{}={}", a, b, a, b, a * b);
