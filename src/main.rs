@@ -1,7 +1,13 @@
 use proc_macro_derive_describe::Describe;
 use proc_macro_expr_binary::{expr_binary_dbg_working, expr_binary_swap_and_subtract};
+use proc_macro_nesting::{
+    inner_creating_own_scope_using_no_outer_declarations,
+    inner_replacing_outer_scope_declaractions_using_braces,
+    inner_replacing_outer_scope_declaractions_using_parens,
+    inner_replacing_outer_scope_declaractions_using_square_brackets,
+    inner_using_outer_declarations, outer,
+};
 use proc_macro_verbatim::verbatim;
-use proc_macro_nesting::{outer, inner_using_outer_declarations, inner_creating_own_scope_using_no_outer_declarations, inner_replacing_outer_scope_declaractions_using_parens, inner_replacing_outer_scope_declaractions_using_braces, inner_replacing_outer_scope_declaractions_using_square_brackets};
 
 #[allow(unused)]
 #[derive(Describe)]
@@ -56,5 +62,4 @@ fn main() {
     assert_eq!(b - a, res);
 
     outer!();
-
 }
