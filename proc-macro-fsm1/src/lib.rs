@@ -1,5 +1,5 @@
+#![feature(core_intrinsics)]
 use proc_macro::{self, TokenStream};
-//use proc_macro2::{Span};
 use quote::quote;
 use syn::parse::{Parse, ParseStream};
 use syn::{parse_macro_input, Result};
@@ -58,7 +58,9 @@ struct Fsm1 {
     #[allow(unused)]
     fsm_fields: Vec<syn::FieldValue>,
     #[allow(unused)]
-    fsm_states: Vec<syn::ItemFn>,
+    fsm_fns: Vec<syn::ItemFn>,
+    #[allow(unused)]
+    fsm_state_fn_idxs: Vec<usize>,
 }
 
 impl Parse for Fsm1 {
@@ -90,23 +92,33 @@ impl Parse for Fsm1 {
         let fields: Vec<syn::FieldValue> = expr_struct.fields.iter().map(|f| f.clone()).collect();
         //println!("Fsm1::parse: fields={:#?}", fields);
 
-        // Parse all of the FSM1 functions
+        // The only thing that should remain are functions
+        let mut state_fn_idxs = Vec::<usize>::new();
         let mut fns = Vec::<syn::ItemFn>::new();
         loop {
             match input.parse::<syn::ItemFn>() {
-                Ok(state) => {
-                    //println!("Fsm1::parse: state {:#?}", state);
+                Ok(a_fn) => {
+                    //println!("Fsm1::parse: state {:#?}", a_fn);
 
-                    // Add the fn to fns if it has the fsm1_state attribute
-                    for a in state.attrs.iter() {
+                    // Add the fn to fns
+                    for a in a_fn.attrs.iter() {
                         if let Some(ident) = a.path.get_ident() {
                             if ident == "fsm1_state" {
-                                fns.push(state.clone());
+                                // Save the index of state functions
+                                state_fn_idxs.push(fns.len());
+                                println!("Fsm1::parse: {} has a fsm1_state attribute, idx={}", a_fn.sig.ident.to_string(), state_fn_idxs[fns.len()-1]);
                             }
                         }
                     }
+                    fns.push(a_fn.clone());
                 }
-                Err(_) => break, // out of loop
+                Err(e) => {
+                    //fn type_of_v<T>(_: &T) -> &str {
+                    //    std::intrinsics::type_name::<T>()
+                    //}
+                    //println!("Fsm1::parse: expecting a function found {:#?}", type_of_v(&e));
+                    break // out of loop
+                }
             }
         }
 
@@ -114,7 +126,8 @@ impl Parse for Fsm1 {
         Ok(Fsm1{
             fsm_name: name.clone(),
             fsm_fields: fields,
-            fsm_states: fns,
+            fsm_fns: fns,
+            fsm_state_fn_idxs: state_fn_idxs,
         })
     }
 }
@@ -137,7 +150,7 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
     let fsm_fields = fsm.fsm_fields; 
     //println!("fsm1: fsm_fields={:#?}", fsm_fields);
 
-    let fsm_states = fsm.fsm_states; 
+    let fsm_fns = fsm.fsm_fns; 
     //println!("fsm1: fsm_states={:#?}", fsm_states);
 
     let output = quote!(
@@ -151,7 +164,7 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
     impl #fsm_name {
         #(
             #[allow(unused)]
-            #fsm_states
+            #fsm_fns
         )*
     });
     //println!("fsm1:- output={:#?}", output);

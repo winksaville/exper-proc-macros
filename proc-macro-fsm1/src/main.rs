@@ -1,9 +1,10 @@
 use proc_macro_fsm1::{fsm1, fsm1_state};
 
+
 fsm1!(
     MyFsm {
-            a_i32: i32,
-            a_u32: u32,
+        a_i32: i32,
+        a_u32: u32,
     }
     fn non_state_fn(&self) {
         println!("MyFSM: non_state_fn self={:#?}", self);
