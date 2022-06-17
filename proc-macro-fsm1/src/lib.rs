@@ -112,11 +112,11 @@ impl Parse for Fsm1 {
                     }
                     fns.push(a_fn.clone());
                 }
-                Err(e) => {
+                Err(_e) => {
                     //fn type_of_v<T>(_: &T) -> &str {
                     //    std::intrinsics::type_name::<T>()
                     //}
-                    //println!("Fsm1::parse: expecting a function found {:#?}", type_of_v(&e));
+                    //println!("Fsm1::parse: expecting a function found {:#?}", type_of_v(&_e));
                     break // out of loop
                 }
             }
