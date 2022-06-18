@@ -154,19 +154,52 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
     //println!("fsm1: fsm_states={:#?}", fsm_states);
 
     let output = quote!(
-    #[derive(Debug)]
-    struct #fsm_name {
-        #(
-            #[allow(unused)]
-            #fsm_fields
-        ),*
-    }
-    impl #fsm_name {
-        #(
-            #[allow(unused)]
-            #fsm_fns
-        )*
-    });
+        //#[derive(Debug)] // Causes "error: implementation of `Debug` is not general enough"
+        #[derive(Default)]
+        struct #fsm_name {
+            sm: SM, // Why is this not seend by vscode code completion?
+
+            #(
+                #[allow(unused)]
+                #fsm_fields
+            ),*
+        }
+
+        impl #fsm_name {
+            pub fn new() -> Self {
+                Default::default()
+            }
+
+            #(
+                #[allow(unused)]
+                #fsm_fns
+            )*
+        }
+
+        //#[derive(Debug)] // Causes "error: implementation of `Debug` is not general enough"
+        struct SM {
+            current_state: fn(&mut #fsm_name, /* &Protocol1*/) -> bool,
+            previous_state: fn(&mut #fsm_name, /* &Protocol1*/) -> bool,
+            current_state_changed: bool,
+        }
+
+        impl Default for SM {
+            fn default() -> Self {
+                Self::new()
+            }
+        }
+
+        impl SM {
+            pub fn new() -> Self {
+                let initial_state = #fsm_name::initial;
+                Self {
+                    current_state: initial_state,
+                    previous_state: initial_state,
+                    current_state_changed: true,
+                }
+            }
+        }
+    );
     //println!("fsm1:- output={:#?}", output);
 
     output.into()
