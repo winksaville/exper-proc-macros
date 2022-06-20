@@ -154,8 +154,7 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
     //println!("fsm1: fsm_states={:#?}", fsm_states);
 
     let output = quote!(
-        //#[derive(Debug)] // Causes "error: implementation of `Debug` is not general enough"
-        #[derive(Default)]
+        #[derive(Debug, Default)]
         struct #fsm_name {
             sm: SM, // Why is this not seend by vscode code completion?
 
