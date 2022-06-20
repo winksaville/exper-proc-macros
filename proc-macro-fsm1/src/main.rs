@@ -66,5 +66,6 @@ fn main() {
     let _ = my_fsm.initial();
     let _ = my_fsm.do_work();
     let _ = my_fsm.done();
+    println!("main: my_fsm.sm={:?}", my_fsm.sm);
 
 }

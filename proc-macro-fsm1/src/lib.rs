@@ -176,10 +176,12 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
             )*
         }
 
-        //#[derive(Debug)] // Causes "error: implementation of `Debug` is not general enough"
+        type StateFn = fn(&'static mut #fsm_name, /* &Protocol1 */) -> bool;
+
+        #[derive(Debug)]
         struct SM {
-            current_state: fn(&mut #fsm_name, /* &Protocol1*/) -> bool,
-            previous_state: fn(&mut #fsm_name, /* &Protocol1*/) -> bool,
+            current_state: StateFn,
+            previous_state: StateFn,
             current_state_changed: bool,
         }
 
