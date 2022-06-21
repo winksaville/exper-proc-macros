@@ -2,7 +2,7 @@ use proc_macro_fsm1::{fsm1, fsm1_state};
 
 
 fsm1!(
-    MyFsm {
+    struct MyFsm {
         a_i32: i32,
     }
 
