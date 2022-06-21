@@ -94,9 +94,9 @@ impl Parse for Fsm1 {
                     for a in a_fn.attrs.iter() {
                         if let Some(ident) = a.path.get_ident() {
                             if ident == "fsm1_state" {
-                                // Save the index of state functions
+                                // Save the index of this function in state_fn_idxs
                                 state_fn_idxs.push(fns.len());
-                                println!("Fsm1::parse: {} has a fsm1_state attribute, idx={}", a_fn.sig.ident.to_string(), state_fn_idxs[fns.len()-1]);
+                                //println!("Fsm1::parse: {} has a fsm1_state attribute, idx={}", a_fn.sig.ident.to_string(), state_fn_idxs.last().unwrap());
                             }
                         }
                     }
@@ -165,6 +165,12 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
                 #[allow(unused)]
                 #fsm_fns
             )*
+
+            pub fn transition_to(&mut self, next_state: StateFn) {
+                self.sm.previous_state = self.sm.current_state;
+                self.sm.current_state = next_state;
+                self.sm.current_state_changed = true;
+            }
         }
 
         type StateFn = fn(&'static mut #fsm_name, /* &Protocol1 */) -> bool;
