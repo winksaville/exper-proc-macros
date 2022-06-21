@@ -51,12 +51,11 @@ pub fn fsm1_state(_attr: TokenStream, item: TokenStream) -> TokenStream {
     item
 }
 
-
 #[derive(Debug)]
 struct Fsm1 {
     fsm_name: syn::Ident,
     #[allow(unused)]
-    fsm_fields: Vec<syn::FieldValue>,
+    fsm_fields: Vec<syn::Field>,
     #[allow(unused)]
     fsm_fns: Vec<syn::ItemFn>,
     #[allow(unused)]
@@ -68,28 +67,19 @@ impl Parse for Fsm1 {
         //println!("Fsm1::parse:+");
         //println!("Fsm1::parse: input={:#?}", input);
 
-        // Expect Ident which is the name of the state machine
-        let lookahead = input.lookahead1();
-        let expr_struct = if lookahead.peek(syn::Ident) {
-            input.parse::<syn::ExprStruct>()?
-        } else {
-            let err = lookahead.error();
-            println!("Fsm1::parse: expecting identifer, error={:?}", &err);
-            return Err(err);
-        };
-        //println!("Fsm1::parse: expr_struct={:#?}", expr_struct);
+        let item_struct = input.parse::<syn::ItemStruct>()?;
+        //println!("Fsm1::parse: item_struct={:#?}", item_struct);
 
-        // Get the identifier from the path, this is the FSM name
-        let name = if let Some(n) = expr_struct.path.get_ident() {
-            n
-        } else {
-            let err = syn::Error::new_spanned(expr_struct.path, "Fsm1::parse: expecting identifier for fsm");
-            return Err(err);
-        };
-        //println!("Fsm1::parse: name={:#?}", name);
-        
         // Parse all of the FSM1 data fields
-        let fields: Vec<syn::FieldValue> = expr_struct.fields.iter().map(|f| f.clone()).collect();
+        let fields: Vec<syn::Field> = match item_struct.fields {
+            syn::Fields::Named(fields_named) => {
+                fields_named.named.iter().map(|f| f.clone()).collect()
+            }
+            _ => {
+                let err = syn::Error::new_spanned(item_struct, "Fsm1::parse: expecting fsm struct");
+                return Err(err);
+            }
+        };
         //println!("Fsm1::parse: fields={:#?}", fields);
 
         // The only thing that should remain are functions
@@ -100,7 +90,7 @@ impl Parse for Fsm1 {
                 Ok(a_fn) => {
                     //println!("Fsm1::parse: state {:#?}", a_fn);
 
-                    // Add the fn to fns
+                    // Look at the attributes and check for "fsm1_state"
                     for a in a_fn.attrs.iter() {
                         if let Some(ident) = a.path.get_ident() {
                             if ident == "fsm1_state" {
@@ -110,6 +100,8 @@ impl Parse for Fsm1 {
                             }
                         }
                     }
+
+                    // Add a_fn to fns
                     fns.push(a_fn.clone());
                 }
                 Err(_e) => {
@@ -124,7 +116,7 @@ impl Parse for Fsm1 {
 
         //println!("Fsm1::parse:-");
         Ok(Fsm1{
-            fsm_name: name.clone(),
+            fsm_name: item_struct.ident.clone(),
             fsm_fields: fields,
             fsm_fns: fns,
             fsm_state_fn_idxs: state_fn_idxs,
