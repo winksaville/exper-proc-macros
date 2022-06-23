@@ -146,7 +146,8 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
     //println!("fsm1: fsm_states={:#?}", fsm_states);
 
     let output = quote!(
-        #[derive(Debug, Default)]
+        //#[derive(Debug)]
+        #[derive(Default)]
         struct #fsm_name {
             sm: SM, // Why is this not seend by vscode code completion?
 
@@ -167,15 +168,40 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
             )*
 
             pub fn transition_to(&mut self, next_state: StateFn) {
+                // DOES NOT WORK if multiple invocations of this in one StateFn!!
+                // How can we reliably detect this at compile time?
+                if self.sm.current_state_changed {
+                    panic!("Only one transition_to maybe executed in a StateFn")
+                }
                 self.sm.previous_state = self.sm.current_state;
                 self.sm.current_state = next_state;
                 self.sm.current_state_changed = true;
             }
+
+            pub fn dispatch(&mut self) {
+                if self.sm.current_state_changed {
+                    // Handle changing state such as executing "enter code" for
+                    // the current_state state
+                    self.sm.current_state_changed = false;
+                }
+
+                (self.sm.current_state)(self);
+
+                if self.sm.current_state_changed {
+                    // Handle changing state such as executing exit "code" for
+                    // the previous state, do not change current_state_changed
+                    // so we execut "enter_code" on next dispatch.
+                }
+            }
         }
 
-        type StateFn = fn(&'static mut #fsm_name, /* &Protocol1 */) -> bool;
+        //This 'static allows derive(Debug) to work but then dispatch
+        // doesn't, so remove Debug for now :(
 
-        #[derive(Debug)]
+        //type StateFn = fn(&'static mut #fsm_name, /* &Protocol1 */) -> bool;
+        type StateFn = fn(&mut #fsm_name, /* &Protocol1 */) -> bool;
+
+        //#[derive(Debug)]
         struct SM {
             current_state: StateFn,
             previous_state: StateFn,
