@@ -147,4 +147,30 @@ mod tests {
         assert!(fsm.sm.previous_state == Test::initial, "previous_state != Test1::initial");
         assert_eq!(fsm.sm.current_state_changed, true);
     }
+
+    #[test]
+    fn test_dispatch_msg() {
+        fsm1!(
+            struct TestDispatchMsg {}
+
+            #[fsm1_state]
+            fn initial(& mut self) -> bool {
+                self.transition_to(TestDispatchMsg::done);
+                true
+            }
+
+            #[fsm1_state]
+            fn done(& mut self) -> bool {
+                true
+            }
+        );
+
+        //fn dp(fsm: &mut TestDispatchMsg) {
+        //    let cs_fn = fsm.sm.current_state;
+        //    cs_fn(fsm);
+        //}
+
+        let mut fsm = TestDispatchMsg::new();
+        _ = fsm.initial();
+    }
 }
