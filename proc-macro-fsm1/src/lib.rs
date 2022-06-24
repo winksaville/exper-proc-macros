@@ -1,4 +1,6 @@
 #![feature(core_intrinsics)]
+use std::collections::HashMap;
+
 use proc_macro::{self, TokenStream};
 use quote::quote;
 use syn::parse::{Parse, ParseStream};
@@ -54,12 +56,19 @@ pub fn fsm1_state(_attr: TokenStream, item: TokenStream) -> TokenStream {
 #[derive(Debug)]
 struct Fsm1 {
     fsm_name: syn::Ident,
-    #[allow(unused)]
     fsm_fields: Vec<syn::Field>,
-    #[allow(unused)]
     fsm_fns: Vec<syn::ItemFn>,
-    #[allow(unused)]
-    fsm_state_fn_idxs: Vec<usize>,
+    fsm_fn_map: HashMap<String, usize>,
+    //fsm_state_fn_idxs: Vec<usize>,
+    fsm_state_fns_names: Vec<StateFnsNames>
+}
+
+#[derive(Debug)]
+struct StateFnsNames {
+    parent_fn_name: Option<String>,
+    entry_fn_name: Option<String>,
+    body_fn_name: String,
+    exit_fn_name: Option<String>,
 }
 
 impl Parse for Fsm1 {
@@ -85,6 +94,7 @@ impl Parse for Fsm1 {
         // The only thing that should remain are functions
         let mut state_fn_idxs = Vec::<usize>::new();
         let mut fns = Vec::<syn::ItemFn>::new();
+        let mut fn_map = HashMap::<String, usize>::new();
         while let Ok(a_fn) = input.parse::<syn::ItemFn>() {
             //println!("Fsm1::parse: state {:#?}", a_fn);
 
@@ -99,16 +109,47 @@ impl Parse for Fsm1 {
                 }
             }
 
-            // Add a_fn to fns
+            // Add a_fn to fn_map and fns
+            fn_map.insert(a_fn.sig.ident.to_string(), fns.len());
             fns.push(a_fn.clone());
         }
 
+
+        let mut state_fns_names = Vec::<StateFnsNames>::new();
+        for body_fn_idx in state_fn_idxs.clone() {
+            let item_fn = &fns[body_fn_idx];
+            let body_fn_name = item_fn.sig.ident.to_string();
+            let entry_fn_name = body_fn_name.clone() + "_enter";
+            let exit_fn_name = body_fn_name.clone() + "_exit";
+
+            let entry_fn_name_opt = if fn_map.get(entry_fn_name.as_str()).is_some() {
+                Some(entry_fn_name)
+            } else {
+                None
+            };
+
+            let exit_fn_name_opt = if fn_map.get(exit_fn_name.as_str()).is_some() {
+                Some(exit_fn_name)
+            } else {
+                None
+            };
+
+            state_fns_names.push(StateFnsNames {
+                parent_fn_name: None,
+                entry_fn_name: entry_fn_name_opt,
+                body_fn_name,
+                exit_fn_name: exit_fn_name_opt,
+            });
+        }
+
         //println!("Fsm1::parse:-");
-        Ok(Fsm1{
+        Ok(Fsm1 {
             fsm_name: item_struct.ident.clone(),
             fsm_fields: fields,
             fsm_fns: fns,
-            fsm_state_fn_idxs: state_fn_idxs,
+            fsm_fn_map: fn_map,
+            //fsm_state_fn_idxs: state_fn_idxs,
+            fsm_state_fns_names: state_fns_names,
         })
     }
 }
@@ -152,6 +193,12 @@ pub fn transition_to(input: TokenStream) -> TokenStream {
     ).into()
 }
 
+macro_rules! transition_to {
+    ($transition_to_target_fn_name:ident) => {
+        self.do_transition(#fsm_name::#transition_to_target_fn_name)
+    };
+}
+
 #[proc_macro]
 pub fn fsm1(input: TokenStream) -> TokenStream {
     //println!("fsm1:+ input={:#?}", &input);
@@ -167,7 +214,44 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
     //println!("fsm1: fsm_fields={:#?}", fsm_fields);
 
     let fsm_fns = fsm.fsm_fns; 
-    //println!("fsm1: fsm_states={:#?}", fsm_states);
+    //println!("fsm1: fsm_fns={:#?}", fsm_fns);
+
+    let mut fsm_state_fns = Vec::<proc_macro::TokenStream>::new();
+    //let mut fsm_state_fns = Vec::<syn::ItemStruct>::new();
+    for sfn in fsm.fsm_state_fns_names {
+        println!("fsm1: sf={:#?}", sfn);
+
+        let body_fn_name = sfn.body_fn_name;
+        println!("fsm1: body_fn_name={}", body_fn_name);
+
+        let opt_fn_name = |name: Option<String>| {
+            match name {
+                Some(name) => quote!(Some(#fsm_name::#name)),
+                None => quote!(None),
+            }
+        };
+        let parent_fn = opt_fn_name(sfn.parent_fn_name);
+        println!("fsm1: parent_fn={}", parent_fn);
+        let entry_fn = opt_fn_name(sfn.entry_fn_name);
+        println!("fsm1: entry_fn={}", entry_fn);
+        let exit_fn = opt_fn_name(sfn.exit_fn_name);
+        println!("fsm1: exit_fn={}", exit_fn);
+
+        let sf_ts: proc_macro::TokenStream = quote!(
+            StateFns {
+                parent: #parent_fn,
+                entry: #entry_fn,
+                body: #fsm_name::#body_fn_name,
+                exit: #exit_fn,
+            }
+        ).into();
+        //println!("fsm1: sf_ts={:#?}", sf_ts);
+        fsm_state_fns.push(sf_ts);
+
+        //let sf_item_struct = parse_macro_input!(sf_ts as syn::ItemStruct);
+        //fsm_state_fns.push(sf_item_struct);
+    }
+    println!("fsm1: fsm_state_fns:\n{:#?}", fsm_state_fns);
 
     let output = quote!(
         //#[derive(Debug)]
@@ -179,6 +263,7 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
                 #[allow(unused)]
                 #fsm_fields
             ),*
+        
         }
 
         impl #fsm_name {
@@ -191,7 +276,7 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
                 #fsm_fns
             )*
 
-            pub fn transition_to(&mut self, next_state: StateFn) {
+            pub fn do_transition(&mut self, next_state: StateFn) {
                 // DOES NOT WORK if multiple invocations of this in one StateFn!!
                 // How can we reliably detect this at compile time?
                 if self.sm.current_state_changed {
@@ -225,10 +310,18 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
         //type StateFn = fn(&'static mut #fsm_name, /* &Protocol1 */) -> bool;
         type StateFn = fn(&mut #fsm_name, /* &Protocol1 */) -> bool;
 
+        struct StateFns {
+            parent: Option<StateFn>,
+            entry: Option<StateFn>,
+            body: StateFn,
+            exit: Option<StateFn>,
+        }
+
         //#[derive(Debug)]
         struct SM {
-            current_state: StateFn,
-            previous_state: StateFn,
+            state_fns: Vec<StateFns>,
+            current_state_fns_idx: usize,
+            previous_state_fns_idx: usize,
             current_state_changed: bool,
         }
 
@@ -240,10 +333,33 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
 
         impl SM {
             pub fn new() -> Self {
-                let initial_state = #fsm_name::initial;
+                //let initial_state = #fsm_name::initial;
                 Self {
-                    current_state: initial_state,
-                    previous_state: initial_state,
+                    state_fns: vec![
+                        //#(
+                        //    #fsm_state_fns
+                        //),*
+                        StateFns {
+                            parent: None,
+                            entry: None,
+                            body: #fsm_name::initial,
+                            exit: None,
+                        },
+                        StateFns {
+                            parent: None,
+                            entry: None,
+                            body: #fsm_name::do_work,
+                            exit: None,
+                        },
+                        StateFns {
+                            parent: None,
+                            entry: None,
+                            body: #fsm_name::done,
+                            exit: None,
+                        },
+                    ],
+                    current_state_fns_idx: 0, //initial_state,
+                    previous_state_fns_idx: 0, //initial_state,
                     current_state_changed: true,
                 }
             }
