@@ -1,4 +1,4 @@
-use proc_macro_fsm1::{fsm1, fsm1_state};
+use proc_macro_fsm1::{fsm1, fsm1_state, transition_to};
 
 fsm1!(
     struct MyFsm {
@@ -13,7 +13,9 @@ fsm1!(
     #[fsm1_state]
     fn initial(& mut self) -> bool {
         self.non_state_fn();
-        self.transition_to(MyFsm::do_work);
+        //self.transition_to(Self::do_work);
+        //self.transition_to(MyFsm::do_work);
+        transition_to!(do_work);
         println!("MyFSM: initial self.a_i32={}", self.a_i32);
         true
     }
