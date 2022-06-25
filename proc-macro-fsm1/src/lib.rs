@@ -193,12 +193,6 @@ pub fn transition_to(input: TokenStream) -> TokenStream {
     ).into()
 }
 
-macro_rules! transition_to {
-    ($transition_to_target_fn_name:ident) => {
-        self.do_transition(#fsm_name::#transition_to_target_fn_name)
-    };
-}
-
 #[proc_macro]
 pub fn fsm1(input: TokenStream) -> TokenStream {
     //println!("fsm1:+ input={:#?}", &input);
@@ -276,14 +270,15 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
                 #fsm_fns
             )*
 
-            pub fn do_transition(&mut self, next_state: StateFn) {
+            pub fn transition_to(&mut self, _next_state: StateFn) {
                 // DOES NOT WORK if multiple invocations of this in one StateFn!!
                 // How can we reliably detect this at compile time?
                 if self.sm.current_state_changed {
                     panic!("Only one transition_to maybe executed in a StateFn")
                 }
-                self.sm.previous_state = self.sm.current_state;
-                self.sm.current_state = next_state;
+                let next_state_fns_idx = 0; // TODO use _next_state
+                self.sm.previous_state_fns_idx = self.sm.current_state_fns_idx;
+                self.sm.current_state_fns_idx = next_state_fns_idx;
                 self.sm.current_state_changed = true;
             }
 
@@ -294,7 +289,8 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
                     self.sm.current_state_changed = false;
                 }
 
-                (self.sm.current_state)(self);
+                let body = self.sm.state_fns[self.sm.current_state_fns_idx].body;
+                (body)(self);
 
                 if self.sm.current_state_changed {
                     // Handle changing state such as executing exit "code" for
