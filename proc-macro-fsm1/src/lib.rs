@@ -154,45 +154,6 @@ impl Parse for Fsm1 {
     }
 }
 
-#[derive(Debug)]
-struct TransitionToId {
-    id: syn::Path
-}
-
-impl Parse for TransitionToId {
-    fn parse(input: ParseStream) -> Result<Self> {
-        //println!("TransitionToId::parse:+");
-        //println!("TransitionToId::parse: input={:#?}", input);
-
-        let tt_id = input.parse::<syn::Path>()?;
-
-        //println!("TransitionToId::parse:- tt_id={:#?}", tt_id);
-        Ok(TransitionToId {
-            id: tt_id,
-        })
-    }
-}
-
-#[proc_macro]
-pub fn transition_to(input: TokenStream) -> TokenStream {
-    let tt_id = parse_macro_input!(input as TransitionToId);
-
-    let id = tt_id.id;
-    //println!("transition_to: id={:#?}", id);
-
-    quote!(
-        // Allows:
-        //   transition_to!(Self::done)
-        // or
-        //   transition_to!(MyFsm::done)
-        //self.transition_to(#id);
-
-        // Allows:
-        //   transition_to!(done)
-        self.transition_to(Self::#id);
-    ).into()
-}
-
 #[proc_macro]
 pub fn fsm1(input: TokenStream) -> TokenStream {
     //println!("fsm1:+ input={:#?}", &input);
@@ -364,4 +325,43 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
     //println!("fsm1:- output={:#?}", output);
 
     output.into()
+}
+
+#[derive(Debug)]
+struct TransitionToId {
+    id: syn::Path
+}
+
+impl Parse for TransitionToId {
+    fn parse(input: ParseStream) -> Result<Self> {
+        //println!("TransitionToId::parse:+");
+        //println!("TransitionToId::parse: input={:#?}", input);
+
+        let tt_id = input.parse::<syn::Path>()?;
+
+        //println!("TransitionToId::parse:- tt_id={:#?}", tt_id);
+        Ok(TransitionToId {
+            id: tt_id,
+        })
+    }
+}
+
+#[proc_macro]
+pub fn transition_to(input: TokenStream) -> TokenStream {
+    let tt_id = parse_macro_input!(input as TransitionToId);
+
+    let id = tt_id.id;
+    //println!("transition_to: id={:#?}", id);
+
+    quote!(
+        // Allows:
+        //   transition_to!(Self::done)
+        // or
+        //   transition_to!(MyFsm::done)
+        //self.transition_to(#id);
+
+        // Allows:
+        //   transition_to!(done)
+        self.transition_to(Self::#id);
+    ).into()
 }
