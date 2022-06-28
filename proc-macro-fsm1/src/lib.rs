@@ -1,10 +1,12 @@
 #![feature(core_intrinsics)]
 use std::collections::HashMap;
+use std::sync::Mutex;
 
 use proc_macro::{self, TokenStream};
 use quote::quote;
 use syn::parse::{Parse, ParseStream};
-use syn::{parse_macro_input, Result};
+use syn::{parse_macro_input, Result, ItemFn, Macro, File};
+use syn::visit::{self, Visit};
 
 // Current thoughts on format of an FSM "DSL"
 //  fsm1 calculator {
@@ -44,9 +46,48 @@ use syn::{parse_macro_input, Result};
 //  );
 //
 
-// Figure out how to expose the name of the fn this
-// attribute is on so it can be added to struct Fsm1 at
-// compile time.
+// From https://stackoverflow.com/questions/34832583/global-mutable-hashmap-in-a-library
+#[macro_use]
+extern crate lazy_static;
+
+lazy_static! {
+    static ref HASHMAP: Mutex<HashMap<String, usize>> = {
+        let m = HashMap::new();
+        Mutex::new(m)
+    };
+}
+
+#[derive(Debug)]
+struct EnterFn {
+    #[allow(unused)]
+    for_state_fn: syn::Ident,
+}
+
+impl Parse for EnterFn {
+    fn parse(input: ParseStream) -> Result<Self> {
+        //println!("parse for EnterFn: input={:#?}", input);
+        let ident = input.parse::<syn::Ident>()?;
+        Ok(EnterFn {
+            for_state_fn: ident
+        })
+    }
+}
+
+#[proc_macro_attribute]
+pub fn fsm1_state_entry_for(attr: TokenStream, item: TokenStream) -> TokenStream {
+    //println!("proc_macro_attribute fsm1_state_entry_for:\nattr={:#?}\nitem={:#?}\n", attr, item);
+
+    let r = parse_macro_input!(attr as EnterFn);
+    //println!("proc_macro_attribute fsm1_state_entry_for: r={:#?}", r);
+
+    let name = r.for_state_fn.to_string();
+    let mut map = HASHMAP.lock().unwrap();
+    map.insert(name, 123usize);
+    //println!("proc_macro_attribute fsm1_state_entry_for: map={:#?}", map);
+
+    item
+}
+
 #[proc_macro_attribute]
 pub fn fsm1_state(_attr: TokenStream, item: TokenStream) -> TokenStream {
     //println!("proc_macro_attribute fsm1_state: item={:#?}", item);
@@ -58,6 +99,7 @@ struct Fsm1 {
     fsm_name: syn::Ident,
     fsm_fields: Vec<syn::Field>,
     fsm_fns: Vec<syn::ItemFn>,
+    #[allow(unused)]
     fsm_fn_map: HashMap<String, usize>,
     //fsm_state_fn_idxs: Vec<usize>,
     fsm_state_fns_names: Vec<StateFnsNames>
@@ -73,7 +115,7 @@ struct StateFnsNames {
 
 impl Parse for Fsm1 {
     fn parse(input: ParseStream) -> Result<Self> {
-        //println!("Fsm1::parse:+");
+        println!("Fsm1::parse:+");
         //println!("Fsm1::parse: input={:#?}", input);
 
         let item_struct = input.parse::<syn::ItemStruct>()?;
@@ -96,7 +138,7 @@ impl Parse for Fsm1 {
         let mut fns = Vec::<syn::ItemFn>::new();
         let mut fn_map = HashMap::<String, usize>::new();
         while let Ok(a_fn) = input.parse::<syn::ItemFn>() {
-            //println!("Fsm1::parse: state {:#?}", a_fn);
+            //println!("Fsm1::parse: tol ItemFn a_fn={:#?}", a_fn);
 
             // Look at the attributes and check for "fsm1_state"
             for a in a_fn.attrs.iter() {
@@ -142,7 +184,7 @@ impl Parse for Fsm1 {
             });
         }
 
-        //println!("Fsm1::parse:-");
+        println!("Fsm1::parse:-");
         Ok(Fsm1 {
             fsm_name: item_struct.ident.clone(),
             fsm_fields: fields,
@@ -156,6 +198,9 @@ impl Parse for Fsm1 {
 
 #[proc_macro]
 pub fn fsm1(input: TokenStream) -> TokenStream {
+    let syntax_tree: File = syn::parse2(input.clone().into()).unwrap();
+    Visitor.visit_file(&syntax_tree);
+
     //println!("fsm1:+ input={:#?}", &input);
     let in_ts = input;
 
@@ -174,10 +219,10 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
     let mut fsm_state_fns = Vec::<proc_macro::TokenStream>::new();
     //let mut fsm_state_fns = Vec::<syn::ItemStruct>::new();
     for sfn in fsm.fsm_state_fns_names {
-        println!("fsm1: sf={:#?}", sfn);
+        //println!("fsm1: sf={:#?}", sfn);
 
         let body_fn_name = sfn.body_fn_name;
-        println!("fsm1: body_fn_name={}", body_fn_name);
+        //println!("fsm1: body_fn_name={}", body_fn_name);
 
         let opt_fn_name = |name: Option<String>| {
             match name {
@@ -186,11 +231,11 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
             }
         };
         let parent_fn = opt_fn_name(sfn.parent_fn_name);
-        println!("fsm1: parent_fn={}", parent_fn);
+        //println!("fsm1: parent_fn={}", parent_fn);
         let entry_fn = opt_fn_name(sfn.entry_fn_name);
-        println!("fsm1: entry_fn={}", entry_fn);
+        //println!("fsm1: entry_fn={}", entry_fn);
         let exit_fn = opt_fn_name(sfn.exit_fn_name);
-        println!("fsm1: exit_fn={}", exit_fn);
+        //println!("fsm1: exit_fn={}", exit_fn);
 
         let sf_ts: proc_macro::TokenStream = quote!(
             StateFns {
@@ -206,7 +251,10 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
         //let sf_item_struct = parse_macro_input!(sf_ts as syn::ItemStruct);
         //fsm_state_fns.push(sf_item_struct);
     }
-    println!("fsm1: fsm_state_fns:\n{:#?}", fsm_state_fns);
+    //println!("fsm1: fsm_state_fns:\n{:#?}", fsm_state_fns);
+
+    let map = HASHMAP.lock().unwrap();
+    println!("fsm1: lazy_static map={:#?}", map);
 
     let output = quote!(
         //#[derive(Debug)]
@@ -350,8 +398,11 @@ impl Parse for TransitionToId {
 pub fn transition_to(input: TokenStream) -> TokenStream {
     let tt_id = parse_macro_input!(input as TransitionToId);
 
+
+    //let map = HASHMAP.lock().unwrap();
     let id = tt_id.id;
     //println!("transition_to: id={:#?}", id);
+    //println!("transition_to: id={:#?} lazy_static map={:#?}", id, map);
 
     quote!(
         // Allows:
@@ -364,4 +415,23 @@ pub fn transition_to(input: TokenStream) -> TokenStream {
         //   transition_to!(done)
         self.transition_to(Self::#id);
     ).into()
+}
+
+
+struct Visitor;
+
+impl<'ast> Visit<'ast> for Visitor {
+    fn visit_item_fn(&mut self, node: &'ast ItemFn) {
+        println!("Function node.sig.ident={:?}", node.sig.ident);
+
+        // Delegate to the default impl to visit any nested functions.
+        visit::visit_item_fn(self, node);
+    }
+
+    fn visit_macro(&mut self, node: &'ast Macro) {
+        println!("Macro: node={:?}", node);
+
+        // Delegate to the default impl to visit any nested macros.
+        visit::visit_macro(self, node);
+    }
 }
