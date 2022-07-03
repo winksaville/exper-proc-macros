@@ -1,14 +1,22 @@
 use proc_macro::{self, TokenStream};
-use syn::{ItemFn, Macro, File};
 use syn::visit::{self, Visit};
+use syn::{self, ItemFn, Macro, File};
+
+#[proc_macro]
+pub fn valid_tokenstream(input: TokenStream) -> TokenStream {
+    println!("valid_tokenstream: input={:#?}", input);
+
+    // Return nothing
+    TokenStream::new()
+}
 
 #[proc_macro]
 pub fn visit1(input: TokenStream) -> TokenStream {
-    //println!("visit1: input={:#?}", input);
+    println!("visit1: input={:#?}", input);
     let syntax_tree: File = syn::parse2(input.clone().into()).unwrap();
-    //println!("visit1: syntax_tree={:#?}", syntax_tree);
+    println!("visit1: syntax_tree={:#?}", syntax_tree);
     Visitor::new().visit_file(&syntax_tree);
-    //println!("visit1: after visit_file");
+    println!("visit1: after visit_file");
 
     input
 }
