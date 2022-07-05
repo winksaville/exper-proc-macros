@@ -1,4 +1,4 @@
-use proc_macro_fsm1::{fsm1, fsm1_state, fsm1_state_entry_for, transition_to};
+use proc_macro_fsm1::{fsm1, fsm1_state, fsm1_state_entry_for};
 
 fsm1!(
     struct MyFsm {
@@ -16,28 +16,27 @@ fsm1!(
     }
 
     #[fsm1_state]
-    fn initial(& mut self) -> bool {
+    fn initial(& mut self) -> StateResult {
         self.non_state_fn();
-        //self.transition_to(Self::do_work);
-        //self.transition_to(MyFsm::do_work);
-        transition_to!(do_work);
         println!("MyFSM: initial self.a_i32={}", self.a_i32);
-        true
+
+        StateResult::TransitionTo(Self::do_work)
     }
 
     #[fsm1_state]
-    fn do_work(& mut self) -> bool {
+    fn do_work(& mut self) -> StateResult {
         self.a_i32 += 1;
-        self.transition_to(MyFsm::done);
         println!("MyFSM: do_work self.a_i32={}", self.a_i32);
-        true
+
+        StateResult::TransitionTo(Self::done)
     }
 
     #[fsm1_state]
-    fn done(& mut self) -> bool {
+    fn done(& mut self) -> StateResult {
         self.a_i32 += 1;
         println!("MyFSM: done self.a_i32={}", self.a_i32);
-        true
+
+        StateResult::Handled
     }
 );
 
@@ -60,9 +59,9 @@ fn main() {
 
     // Verify default with type works
     let mut my_fsm: MyFsm = Default::default();
-    //assert_eq!(my_fsm.sm.current_state_fns_idx, MyFsm::initial as usize);
-    //assert_eq!(my_fsm.sm.previous_state_fns_idx, MyFsm::initial as usize);
-    //assert!(my_fsm.sm.current_state_changed);
+    assert_eq!(my_fsm.sm.current_state_fn as usize, MyFsm::initial as usize);
+    assert_eq!(my_fsm.sm.previous_state_fn as usize, MyFsm::initial as usize);
+    assert!(my_fsm.sm.current_state_changed);
 
     my_fsm.a_i32 = 123;
     println!("main: my_fsm.a_i32={}", my_fsm.a_i32);
@@ -70,134 +69,137 @@ fn main() {
     // Invoke initial
     my_fsm.dispatch();
     println!("main: my_fsm.a_i32={} csc={}", my_fsm.a_i32, my_fsm.sm.current_state_changed);
-    //assert_eq!(my_fsm.sm.current_state_fns_idx, MyFsm::do_work as usize);
-    //assert_eq!(my_fsm.sm.previous_state_fns_idx, MyFsm::initial as usize);
-    //assert!(my_fsm.sm.current_state_changed);
+    assert_eq!(my_fsm.sm.current_state_fn as usize, MyFsm::do_work as usize);
+    assert_eq!(my_fsm.sm.previous_state_fn as usize, MyFsm::initial as usize);
+    assert!(my_fsm.sm.current_state_changed);
 
     // Invoke do_work
     my_fsm.dispatch();
     println!("main: my_fsm.a_i32={}", my_fsm.a_i32);
-    //assert_eq!(my_fsm.sm.current_state_fns_idx, MyFsm::done as usize);
-    //assert_eq!(my_fsm.sm.previous_state_fns_idx, MyFsm::do_work as usize);
-    //assert!(my_fsm.sm.current_state_changed);
+    assert_eq!(my_fsm.sm.current_state_fn as usize, MyFsm::done as usize);
+    assert_eq!(my_fsm.sm.previous_state_fn as usize, MyFsm::do_work as usize);
+    assert!(my_fsm.sm.current_state_changed);
 
     // Invoke done
     my_fsm.dispatch();
     println!("main: my_fsm.a_i32={}", my_fsm.a_i32);
-    //assert_eq!(my_fsm.sm.current_state_fns_idx, MyFsm::done as usize);
-    //assert_eq!(my_fsm.sm.previous_state_fns_idx,  MyFsm::do_work as usize);
-    //assert!(!my_fsm.sm.current_state_changed);
+    assert_eq!(my_fsm.sm.current_state_fn as usize, MyFsm::done as usize);
+    assert_eq!(my_fsm.sm.previous_state_fn as usize,  MyFsm::do_work as usize);
+    assert!(!my_fsm.sm.current_state_changed);
 
     // Invoke done again
     my_fsm.dispatch();
     println!("main: my_fsm.a_i32={}", my_fsm.a_i32);
-    //assert_eq!(my_fsm.sm.current_state_fns_idx, MyFsm::done as usize);
-    //assert_eq!(my_fsm.sm.previous_state_fns_idx, MyFsm::do_work as usize);
-    //assert!(!my_fsm.sm.current_state_changed);
+    assert_eq!(my_fsm.sm.current_state_fn as usize, MyFsm::done as usize);
+    assert_eq!(my_fsm.sm.previous_state_fn as usize, MyFsm::do_work as usize);
+    assert!(!my_fsm.sm.current_state_changed);
 }
 
-//#[cfg(test)]
-//mod tests {
-//    use proc_macro_fsm1::{fsm1, fsm1_state};
-//
-//    #[test]
-//    fn test_initialization_via_default() {
-//        fsm1!(
-//            struct Test {}
-//
-//            #[fsm1_state]
-//            fn initial(& mut self) -> bool {
-//                true
-//            }
-//        );
-//
-//        let fsm: Test = Default::default();
-//        assert_eq!(fsm.sm.current_state_fns_idx, Test::initial as usize);
-//        assert_eq!(fsm.sm.previous_state_fns_idx, Test::initial as usize);
-//        assert!(fsm.sm.current_state_changed);
-//    }
-//
-//    #[test]
-//    fn test_initialization_via_new() {
-//        fsm1!(
-//            struct Test {}
-//
-//            #[fsm1_state]
-//            fn initial(& mut self) -> bool {
-//                true
-//            }
-//        );
-//
-//        let fsm = Test::new();
-//        assert_eq!(fsm.sm.current_state_fns_idx, Test::initial as usize);
-//        assert_eq!(fsm.sm.previous_state_fns_idx, Test::initial as usize);
-//        assert!(fsm.sm.current_state_changed);
-//    }
-//
-//    #[test]
-//    fn test_transition_to() {
-//        fsm1!(
-//            struct Test {}
-//
-//            #[fsm1_state]
-//            fn initial(& mut self) -> bool {
-//                self.transition_to(Test::done);
-//                true
-//            }
-//
-//            #[fsm1_state]
-//            fn done(& mut self) -> bool {
-//                true
-//            }
-//        );
-//
-//        let mut fsm = Test::new();
-//        assert_eq!(fsm.sm.current_state_fns_idx, Test::initial as usize);
-//        assert_eq!(fsm.sm.previous_state_fns_idx, Test::initial as usize);
-//        assert!(fsm.sm.current_state_changed);
-//        fsm.sm.current_state_changed = false;
-//        _ = fsm.initial();
-//        assert_eq!(fsm.sm.current_state_fns_idx, Test::done as usize);
-//        assert_eq!(fsm.sm.previous_state_fns_idx, Test::initial as usize);
-//        assert!(fsm.sm.current_state_changed);
-//    }
-//
-//    #[test]
-//    fn test_dispatch() {
-//        fsm1!(
-//            struct TestDispatch {}
-//
-//            #[fsm1_state]
-//            fn initial(& mut self) -> bool {
-//                self.transition_to(TestDispatch::done);
-//                true
-//            }
-//
-//            #[fsm1_state]
-//            fn done(& mut self) -> bool {
-//                true
-//            }
-//        );
-//
-//        let mut fsm = TestDispatch::new();
-//        assert_eq!(fsm.sm.current_state_fns_idx, TestDispatch::initial as usize);
-//        assert_eq!(fsm.sm.previous_state_fns_idx, TestDispatch::initial as usize);
-//        assert!(fsm.sm.current_state_changed);
-//
-//        fsm.dispatch();
-//        assert_eq!(fsm.sm.current_state_fns_idx, TestDispatch::done as usize);
-//        assert_eq!(fsm.sm.previous_state_fns_idx, TestDispatch::initial as usize);
-//        assert!(fsm.sm.current_state_changed);
-//
-//        fsm.dispatch();
-//        assert_eq!(fsm.sm.current_state_fns_idx, TestDispatch::done as usize);
-//        assert_eq!(fsm.sm.previous_state_fns_idx, TestDispatch::initial as usize);
-//        assert!(!fsm.sm.current_state_changed);
-//
-//        fsm.dispatch();
-//        assert_eq!(fsm.sm.current_state_fns_idx, TestDispatch::done as usize);
-//        assert_eq!(fsm.sm.previous_state_fns_idx, TestDispatch::initial as usize);
-//        assert!(!fsm.sm.current_state_changed);
-//    }
-//}
-//
+
+#[cfg(test)]
+mod tests {
+    use proc_macro_fsm1::{fsm1, fsm1_state};
+
+    #[test]
+    fn test_initialization_via_default() {
+        fsm1!(
+            struct Test {}
+
+            #[fsm1_state]
+            fn initial(& mut self) -> StateResult {
+                StateResult::Handled
+            }
+        );
+
+        let fsm: Test = Default::default();
+        assert_eq!(fsm.sm.current_state_fn as usize, Test::initial as usize);
+        assert_eq!(fsm.sm.previous_state_fn as usize, Test::initial as usize);
+        assert!(fsm.sm.current_state_changed);
+    }
+
+    #[test]
+    fn test_initialization_via_new() {
+        fsm1!(
+            struct Test {}
+
+            #[fsm1_state]
+            fn initial(& mut self) -> StateResult {
+                StateResult::Handled
+            }
+        );
+
+        let mut fsm = Test::new();
+        assert_eq!(fsm.sm.current_state_fn as usize, Test::initial as usize);
+        assert_eq!(fsm.sm.previous_state_fn as usize, Test::initial as usize);
+        assert!(fsm.sm.current_state_changed);
+
+        fsm.dispatch();
+        assert_eq!(fsm.sm.current_state_fn as usize, Test::initial as usize);
+        assert_eq!(fsm.sm.previous_state_fn as usize, Test::initial as usize);
+        assert!(!fsm.sm.current_state_changed);
+    }
+
+    #[test]
+    fn test_transition_to() {
+        fsm1!(
+            struct Test {}
+
+            #[fsm1_state]
+            fn initial(& mut self) -> StateResult {
+                StateResult::TransitionTo(Test::done)
+            }
+
+            #[fsm1_state]
+            fn done(& mut self) -> StateResult {
+                StateResult::Handled
+            }
+        );
+
+        let mut fsm = Test::new();
+        assert_eq!(fsm.sm.current_state_fn as usize, Test::initial as usize);
+        assert_eq!(fsm.sm.previous_state_fn as usize, Test::initial as usize);
+        assert!(fsm.sm.current_state_changed);
+
+        fsm.dispatch();
+        assert_eq!(fsm.sm.current_state_fn as usize, Test::done as usize);
+        assert_eq!(fsm.sm.previous_state_fn as usize, Test::initial as usize);
+        assert!(fsm.sm.current_state_changed);
+    }
+
+    #[test]
+    fn test_dispatch() {
+        fsm1!(
+            struct TestDispatch {}
+
+            #[fsm1_state]
+            fn initial(& mut self) -> StateResult {
+                StateResult::TransitionTo(TestDispatch::done)
+            }
+
+            #[fsm1_state]
+            fn done(& mut self) -> StateResult {
+                StateResult::Handled
+            }
+        );
+
+        let mut fsm = TestDispatch::new();
+        assert_eq!(fsm.sm.current_state_fn as usize, TestDispatch::initial as usize);
+        assert_eq!(fsm.sm.previous_state_fn as usize, TestDispatch::initial as usize);
+        assert!(fsm.sm.current_state_changed);
+
+        fsm.dispatch();
+        assert_eq!(fsm.sm.current_state_fn as usize, TestDispatch::done as usize);
+        assert_eq!(fsm.sm.previous_state_fn as usize, TestDispatch::initial as usize);
+        assert!(fsm.sm.current_state_changed);
+
+        fsm.dispatch();
+        assert_eq!(fsm.sm.current_state_fn as usize, TestDispatch::done as usize);
+        assert_eq!(fsm.sm.previous_state_fn as usize, TestDispatch::initial as usize);
+        assert!(!fsm.sm.current_state_changed);
+
+        fsm.dispatch();
+        assert_eq!(fsm.sm.current_state_fn as usize, TestDispatch::done as usize);
+        assert_eq!(fsm.sm.previous_state_fn as usize, TestDispatch::initial as usize);
+        assert!(!fsm.sm.current_state_changed);
+    }
+}

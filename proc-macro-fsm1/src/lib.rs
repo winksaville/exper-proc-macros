@@ -8,44 +8,6 @@ use syn::parse::{Parse, ParseStream};
 use syn::{parse_macro_input, Result, ItemFn, Macro, File};
 use syn::visit::{self, Visit};
 
-// Current thoughts on format of an FSM "DSL"
-//  fsm1 calculator {
-//      protocol Arithmetic {
-//          add {
-//              value: i32,
-//          }
-//          sub {
-//              value: i32,
-//          }
-//      }
-//      data {
-//          i: i32;
-//      }
-//      state initial(data, msg: Arithmetic) {
-//          println!("initial:+");
-//      }
-//      state work(data, msg: Arithmetic) {
-//          println!("work:+");
-//
-//      }
-//      state done(data, msg: Arithmetic) {
-//          println!("initial:+");
-//      }
-//  }
-//
-// Currently implemented (parses isn't yet an FSM)
-//  fsm1!(
-//      MyFsm {
-//              a_i32: i32,
-//              a_u32: u32,
-//      }
-//      #[fsm1_state]
-//      fn initial(&self) {
-//          println!("MyFSM: self={:#?}", self);
-//      }
-//  );
-//
-
 // From https://stackoverflow.com/questions/34832583/global-mutable-hashmap-in-a-library
 #[macro_use]
 extern crate lazy_static;
@@ -279,18 +241,6 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
                 #fsm_fns
             )*
 
-            pub fn transition_to(&mut self, _next_state: StateFn) {
-                // DOES NOT WORK if multiple invocations of this in one StateFn!!
-                // How can we reliably detect this at compile time?
-                if self.sm.current_state_changed {
-                    panic!("Only one transition_to maybe executed in a StateFn")
-                }
-                let next_state_fns_idx = 0; // TODO use _next_state
-                self.sm.previous_state_fns_idx = self.sm.current_state_fns_idx;
-                self.sm.current_state_fns_idx = next_state_fns_idx;
-                self.sm.current_state_changed = true;
-            }
-
             pub fn dispatch(&mut self) {
                 if self.sm.current_state_changed {
                     // Handle changing state such as executing "enter code" for
@@ -298,22 +248,37 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
                     self.sm.current_state_changed = false;
                 }
 
-                let body = self.sm.state_fns[self.sm.current_state_fns_idx].body;
-                (body)(self);
+                //let body = self.sm.state_fns[self.sm.current_state_fns_idx].body;
+                //(body)(self);
+                match (self.sm.current_state_fn)(self) {
+                    StateResult::NotHandled => {
+                        // TBD, execute entry fn of current_state
+                    }
+                    StateResult::Handled => {
+                        // Nothing to do
+                    }
+                    StateResult::TransitionTo(next_state) => {
+                        self.sm.previous_state_fn = self.sm.current_state_fn;
+                        self.sm.current_state_fn = next_state;
+                        self.sm.current_state_changed = true;
+                    }
+                }
 
                 if self.sm.current_state_changed {
                     // Handle changing state such as executing exit "code" for
                     // the previous state, do not change current_state_changed
-                    // so we execut "enter_code" on next dispatch.
+                    // so we execute "enter_code" on next dispatch.
                 }
             }
         }
 
-        //This 'static allows derive(Debug) to work but then dispatch
-        // doesn't, so remove Debug for now :(
+        type StateFn = fn(&mut #fsm_name, /* &Protocol1 */) -> StateResult;
 
-        //type StateFn = fn(&'static mut #fsm_name, /* &Protocol1 */) -> bool;
-        type StateFn = fn(&mut #fsm_name, /* &Protocol1 */) -> bool;
+        enum StateResult {
+            NotHandled,
+            Handled,
+            TransitionTo(StateFn),
+        }
 
         struct StateFns {
             parent: Option<StateFn>,
@@ -324,9 +289,8 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
 
         //#[derive(Debug)]
         struct SM {
-            state_fns: Vec<StateFns>,
-            current_state_fns_idx: usize,
-            previous_state_fns_idx: usize,
+            current_state_fn: StateFn,
+            previous_state_fn: StateFn,
             current_state_changed: bool,
         }
 
@@ -337,34 +301,11 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
         }
 
         impl SM {
-            pub fn new() -> Self {
-                //let initial_state = #fsm_name::initial;
+            fn new() -> Self {
+                let initial_state = #fsm_name::initial;
                 Self {
-                    state_fns: vec![
-                        //#(
-                        //    #fsm_state_fns
-                        //),*
-                        StateFns {
-                            parent: None,
-                            entry: None,
-                            body: #fsm_name::initial,
-                            exit: None,
-                        },
-                        StateFns {
-                            parent: None,
-                            entry: None,
-                            body: #fsm_name::do_work,
-                            exit: None,
-                        },
-                        StateFns {
-                            parent: None,
-                            entry: None,
-                            body: #fsm_name::done,
-                            exit: None,
-                        },
-                    ],
-                    current_state_fns_idx: 0, //initial_state,
-                    previous_state_fns_idx: 0, //initial_state,
+                    current_state_fn: initial_state,
+                    previous_state_fn: initial_state,
                     current_state_changed: true,
                 }
             }
@@ -373,48 +314,6 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
     //println!("fsm1:- output={:#?}", output);
 
     output.into()
-}
-
-#[derive(Debug)]
-struct TransitionToId {
-    id: syn::Path
-}
-
-impl Parse for TransitionToId {
-    fn parse(input: ParseStream) -> Result<Self> {
-        //println!("TransitionToId::parse:+");
-        //println!("TransitionToId::parse: input={:#?}", input);
-
-        let tt_id = input.parse::<syn::Path>()?;
-
-        //println!("TransitionToId::parse:- tt_id={:#?}", tt_id);
-        Ok(TransitionToId {
-            id: tt_id,
-        })
-    }
-}
-
-#[proc_macro]
-pub fn transition_to(input: TokenStream) -> TokenStream {
-    let tt_id = parse_macro_input!(input as TransitionToId);
-
-
-    //let map = HASHMAP.lock().unwrap();
-    let id = tt_id.id;
-    //println!("transition_to: id={:#?}", id);
-    //println!("transition_to: id={:#?} lazy_static map={:#?}", id, map);
-
-    quote!(
-        // Allows:
-        //   transition_to!(Self::done)
-        // or
-        //   transition_to!(MyFsm::done)
-        //self.transition_to(#id);
-
-        // Allows:
-        //   transition_to!(done)
-        self.transition_to(Self::#id);
-    ).into()
 }
 
 
