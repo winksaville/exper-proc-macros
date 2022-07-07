@@ -1,23 +1,11 @@
 #![feature(core_intrinsics)]
 use std::collections::HashMap;
-use std::sync::Mutex;
 
 use proc_macro::{self, TokenStream};
 use quote::quote;
 use syn::parse::{Parse, ParseStream};
 use syn::{parse_macro_input, Result, ItemFn, Macro, File};
 use syn::visit::{self, Visit};
-
-// From https://stackoverflow.com/questions/34832583/global-mutable-hashmap-in-a-library
-#[macro_use]
-extern crate lazy_static;
-
-lazy_static! {
-    static ref HASHMAP: Mutex<HashMap<String, usize>> = {
-        let m = HashMap::new();
-        Mutex::new(m)
-    };
-}
 
 #[derive(Debug)]
 struct EnterFn {
@@ -40,12 +28,10 @@ pub fn fsm1_state_entry_for(attr: TokenStream, item: TokenStream) -> TokenStream
     //println!("proc_macro_attribute fsm1_state_entry_for:\nattr={:#?}\nitem={:#?}\n", attr, item);
 
     let r = parse_macro_input!(attr as EnterFn);
-    //println!("proc_macro_attribute fsm1_state_entry_for: r={:#?}", r);
+    println!("proc_macro_attribute fsm1_state_entry_for: r={:#?}", r);
 
     let name = r.for_state_fn.to_string();
-    let mut map = HASHMAP.lock().unwrap();
-    map.insert(name, 123usize);
-    //println!("proc_macro_attribute fsm1_state_entry_for: map={:#?}", map);
+    println!("fms1_state_entry_for: name={}", name);
 
     item
 }
@@ -71,7 +57,7 @@ struct Fsm1 {
 struct StateFnsNames {
     parent_fn_name: Option<String>,
     entry_fn_name: Option<String>,
-    body_fn_name: String,
+    process_fn_name: String,
     exit_fn_name: Option<String>,
 }
 
@@ -120,11 +106,11 @@ impl Parse for Fsm1 {
 
 
         let mut state_fns_names = Vec::<StateFnsNames>::new();
-        for body_fn_idx in state_fn_idxs.clone() {
-            let item_fn = &fns[body_fn_idx];
-            let body_fn_name = item_fn.sig.ident.to_string();
-            let entry_fn_name = body_fn_name.clone() + "_enter";
-            let exit_fn_name = body_fn_name.clone() + "_exit";
+        for process_fn_idx in state_fn_idxs.clone() {
+            let item_fn = &fns[process_fn_idx];
+            let process_fn_name = item_fn.sig.ident.to_string();
+            let entry_fn_name = process_fn_name.clone() + "_enter";
+            let exit_fn_name = process_fn_name.clone() + "_exit";
 
             let entry_fn_name_opt = if fn_map.get(entry_fn_name.as_str()).is_some() {
                 Some(entry_fn_name)
@@ -141,7 +127,7 @@ impl Parse for Fsm1 {
             state_fns_names.push(StateFnsNames {
                 parent_fn_name: None,
                 entry_fn_name: entry_fn_name_opt,
-                body_fn_name,
+                process_fn_name,
                 exit_fn_name: exit_fn_name_opt,
             });
         }
@@ -178,13 +164,16 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
     let fsm_fns = fsm.fsm_fns; 
     //println!("fsm1: fsm_fns={:#?}", fsm_fns);
 
+    let fsm_fn_map = fsm.fsm_fn_map;
+    println!("fsm1: fsm_fn_map={:?}", fsm_fn_map);
+
     let mut fsm_state_fns = Vec::<proc_macro::TokenStream>::new();
     //let mut fsm_state_fns = Vec::<syn::ItemStruct>::new();
     for sfn in fsm.fsm_state_fns_names {
         //println!("fsm1: sf={:#?}", sfn);
 
-        let body_fn_name = sfn.body_fn_name;
-        //println!("fsm1: body_fn_name={}", body_fn_name);
+        let process_fn_name = sfn.process_fn_name;
+        //println!("fsm1: process_fn_name={}", process_fn_name);
 
         let opt_fn_name = |name: Option<String>| {
             match name {
@@ -203,7 +192,7 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
             StateFns {
                 parent: #parent_fn,
                 entry: #entry_fn,
-                body: #fsm_name::#body_fn_name,
+                process: #fsm_name::#process_fn_name,
                 exit: #exit_fn,
             }
         ).into();
@@ -214,9 +203,6 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
         //fsm_state_fns.push(sf_item_struct);
     }
     //println!("fsm1: fsm_state_fns:\n{:#?}", fsm_state_fns);
-
-    let map = HASHMAP.lock().unwrap();
-    println!("fsm1: lazy_static map={:#?}", map);
 
     let output = quote!(
         //#[derive(Debug)]
@@ -248,8 +234,6 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
                     self.sm.current_state_changed = false;
                 }
 
-                //let body = self.sm.state_fns[self.sm.current_state_fns_idx].body;
-                //(body)(self);
                 match (self.sm.current_state_fn)(self) {
                     StateResult::NotHandled => {
                         // TBD, execute entry fn of current_state
@@ -283,12 +267,13 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
         struct StateFns {
             parent: Option<StateFn>,
             entry: Option<StateFn>,
-            body: StateFn,
+            process: StateFn,
             exit: Option<StateFn>,
         }
 
         //#[derive(Debug)]
         struct SM {
+            state_fns: Vec<StateFns>,
             current_state_fn: StateFn,
             previous_state_fn: StateFn,
             current_state_changed: bool,
@@ -304,6 +289,7 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
             fn new() -> Self {
                 let initial_state = #fsm_name::initial;
                 Self {
+                    state_fns: vec![],
                     current_state_fn: initial_state,
                     previous_state_fn: initial_state,
                     current_state_changed: true,
