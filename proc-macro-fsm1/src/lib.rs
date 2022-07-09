@@ -31,10 +31,10 @@ pub fn fsm1_state_entry_for(attr: TokenStream, item: TokenStream) -> TokenStream
     //println!("proc_macro_attribute fsm1_state_entry_for:\nattr={:#?}\nitem={:#?}\n", attr, item);
 
     let r = parse_macro_input!(attr as EnterFn);
-    println!("proc_macro_attribute fsm1_state_entry_for: r={:#?}", r);
+    //println!("proc_macro_attribute fsm1_state_entry_for: r={:#?}", r);
 
-    let name = r.for_state_fn.to_string();
-    println!("fms1_state_entry_for: name={}", name);
+    let _name = r.for_state_fn.to_string();
+    //println!("fms1_state_entry_for: name={}", name);
 
     item
 }
@@ -58,15 +58,15 @@ struct Fsm1 {
 
 #[derive(Debug)]
 struct StateFnsNames {
-    parent_fn_name: Option<String>,
-    entry_fn_name: Option<String>,
-    process_fn_name: String,
-    exit_fn_name: Option<String>,
+    parent_fn_name: Option<syn::Ident>,
+    entry_fn_name: Option<syn::Ident>,
+    process_fn_name: syn::Ident,
+    exit_fn_name: Option<syn::Ident>,
 }
 
 impl Parse for Fsm1 {
     fn parse(input: ParseStream) -> Result<Self> {
-        println!("Fsm1::parse:+");
+        //println!("Fsm1::parse:+");
         //println!("Fsm1::parse: input={:#?}", input);
 
         let item_struct = input.parse::<syn::ItemStruct>()?;
@@ -111,17 +111,20 @@ impl Parse for Fsm1 {
         let mut state_fns_names = Vec::<StateFnsNames>::new();
         for process_fn_idx in state_fn_idxs.clone() {
             let item_fn = &fns[process_fn_idx];
-            let process_fn_name = item_fn.sig.ident.to_string();
-            let entry_fn_name = process_fn_name.clone() + "_enter";
-            let exit_fn_name = process_fn_name.clone() + "_exit";
+            let process_fn_name = item_fn.sig.ident.clone();
+            let new_ident = |name: syn::Ident, suffix: &str| {
+                syn::Ident::new((name.to_string() + suffix.to_owned().as_str()).as_str(), name.span())
+            };
+            let entry_fn_name = new_ident(process_fn_name.clone(), "_exit");
+            let exit_fn_name = new_ident(process_fn_name.clone(), "_exit");
 
-            let entry_fn_name_opt = if fn_map.get(entry_fn_name.as_str()).is_some() {
+            let entry_fn_name_opt = if fn_map.get(entry_fn_name.to_string().as_str()).is_some() {
                 Some(entry_fn_name)
             } else {
                 None
             };
 
-            let exit_fn_name_opt = if fn_map.get(exit_fn_name.as_str()).is_some() {
+            let exit_fn_name_opt = if fn_map.get(exit_fn_name.to_string().as_str()).is_some() {
                 Some(exit_fn_name)
             } else {
                 None
@@ -135,7 +138,7 @@ impl Parse for Fsm1 {
             });
         }
 
-        println!("Fsm1::parse:-");
+        //println!("Fsm1::parse:-");
         Ok(Fsm1 {
             fsm_name: item_struct.ident.clone(),
             fsm_fields: fields,
@@ -167,56 +170,17 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
     let fsm_fns = fsm.fsm_fns; 
     //println!("fsm1: fsm_fns={:#?}", fsm_fns);
 
-    let fsm_fn_map = fsm.fsm_fn_map;
-    println!("fsm1: fsm_fn_map={:?}", fsm_fn_map);
+    let _fsm_fn_map = fsm.fsm_fn_map;
+    //println!("fsm1: fsm_fn_map={:?}", fsm_fn_map);
 
-
-    // This is the "real" processing for each state_fns but initializing the "process" field doe not work
-    //let mut fsm_state_fns = Vec::<proc_macro::TokenStream>::new();
-    //for sfn in fsm.fsm_state_fns_names {
-    //    //println!("fsm1: sf={:#?}", sfn);
-
-    //    let process_fn_name = sfn.process_fn_name;
-    //    //println!("fsm1: process_fn_name={}", process_fn_name);
-
-    //    let opt_fn_name = |name: Option<String>| {
-    //        match name {
-    //            Some(name) => quote!(Some(#fsm_name::#name)),
-    //            None => quote!(None),
-    //        }
-    //    };
-    //    let parent_fn = opt_fn_name(sfn.parent_fn_name);
-    //    //println!("fsm1: parent_fn={}", parent_fn);
-    //    let entry_fn = opt_fn_name(sfn.entry_fn_name);
-    //    //println!("fsm1: entry_fn={}", entry_fn);
-    //    let exit_fn = opt_fn_name(sfn.exit_fn_name);
-    //    //println!("fsm1: exit_fn={}", exit_fn);
-
-    //    let sf_ts: proc_macro::TokenStream = quote!(
-    //        StateFns {
-    //            parent: #parent_fn,
-    //            entry: #entry_fn,
-    //            process: #fsm_name::#process_fn_name,
-    //            exit: #exit_fn,
-    //        }
-    //    ).into();
-    //    //println!("fsm1: sf_ts={:#?}", sf_ts);
-    //    fsm_state_fns.push(sf_ts);
-
-    //    //let sf_item_struct = parse_macro_input!(sf_ts as syn::ItemStruct);
-    //    //fsm_state_fns.push(sf_item_struct);
-    //}
-    //println!("fsm1: fsm_state_fns:\n{:#?}", fsm_state_fns);
-
-    // Only one function for now, (break at the bottom of the loop) so not mut
     let mut fsm_state_fns = Vec::<syn::ExprStruct>::new();
     for sfn in fsm.fsm_state_fns_names {
         //println!("fsm1: sf={:#?}", sfn);
 
         let process_fn_name = sfn.process_fn_name;
-        println!("fsm1: process_fn_name={}", process_fn_name);
+        //println!("fsm1: process_fn_name={}", process_fn_name);
 
-        let opt_fn_name = |name: Option<String>| {
+        let opt_fn_name = |name: Option<syn::Ident>| {
             match name {
                 Some(name) => quote!(Some(#fsm_name::#name)),
                 None => quote!(None),
@@ -229,53 +193,18 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
         let exit_fn = opt_fn_name(sfn.exit_fn_name);
         //println!("fsm1: exit_fn={}", exit_fn);
 
-        // quote!(initial) outputs a Ident
-        let ts: TokenStream2 = quote!(initial);
-        println!("fsm1: 2-1 quote!(initial)             ts={:?}", ts); // fsm1: 2-1 quote!(initial)             ts=TokenStream [Ident { ident: "initial", span: #5 bytes(64..988) }]
-
-        // quote!(#process_fn_name) outputs a literal this is what I see with "Self::#process_fn_name"
-        let ts: TokenStream2 = quote!(#process_fn_name);
-        println!("fsm1: 2-0 quote!(#process_fn_name)    ts={:?}", ts); // fsm1: 2-0 quote!(#process_fn_name)    ts=TokenStream [Literal { kind: Str, symbol: "initial", suffix: None, span: #5 bytes(64..988) }] 
-
-        // Fail
         let ts: TokenStream2 = quote!(
             StateFns {
+                parent: #parent_fn,
+                entry: #entry_fn,
                 process: #fsm_name::#process_fn_name,
+                exit: #exit_fn,
             }
         );
-        println!("fsm1: 2.0 #fsm_name::#process_fn_name ts={:?}", ts);
-
-        // Fails
-        let ts: TokenStream2 = quote!(
-            StateFns {
-                process: Self::#process_fn_name,
-            }
-        );
-        println!("fsm1: 2.1 Self::#process_fn_name      ts={:?}", ts);
-        let ts: TokenStream2 = quote!(
-            StateFns {
-                parent: #parent_fn, // Ok
-                entry: #entry_fn, // Ok
-                process: #fsm_name::initial, // "fsm1: was ExprStruct" and runs successfuly
-                //process: #fsm_name::#process_fn_name, // fsm1: 2 sf_es=Err(Error("expected identifier")) fsm1: was NOT ExprStruct
-                //process: 2, // "fsm1: was ExprStruct" but Compile error: expected fn pointer, found `usize`
-                //process: #process_fn_name, // "fsm1: was ExprStruct" but Compile error: expected fn pointer, found `&str`
-                exit: #exit_fn, // Ok
-            }
-        );
-        println!("fsm1: 2.2 #fsm_name::initial          ts={:?}", ts);
         let sf_es = syn::parse2::<syn::ExprStruct>(ts);
-        println!("fsm1: 2 sf_es={:?}", &sf_es);
         if let Ok(es) = sf_es {
-            println!("fsm1: was ExprStruct");
             fsm_state_fns.push(es);
-        } else {
-            println!("fsm1: was NOT ExprStruct");
         }
-
-        // Only do one StateFns as we have to "hard-code" the name
-        // which is "initial" at the moment.
-        break;
     }
     //println!("fsm1: fsm_state_fns:\n{:#?}", fsm_state_fns);
 
@@ -386,14 +315,14 @@ struct Visitor;
 
 impl<'ast> Visit<'ast> for Visitor {
     fn visit_item_fn(&mut self, node: &'ast ItemFn) {
-        println!("Function node.sig.ident={:?}", node.sig.ident);
+        //println!("Function node.sig.ident={:?}", node.sig.ident);
 
         // Delegate to the default impl to visit any nested functions.
         visit::visit_item_fn(self, node);
     }
 
     fn visit_macro(&mut self, node: &'ast Macro) {
-        println!("Macro: node={:?}", node);
+        //println!("Macro: node={:?}", node);
 
         // Delegate to the default impl to visit any nested macros.
         visit::visit_macro(self, node);
