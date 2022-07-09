@@ -209,7 +209,7 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
     //println!("fsm1: fsm_state_fns:\n{:#?}", fsm_state_fns);
 
     // Only one function for now, (break at the bottom of the loop) so not mut
-    let fsm_state_fns = Vec::<syn::ExprStruct>::new();
+    let mut fsm_state_fns = Vec::<syn::ExprStruct>::new();
     for sfn in fsm.fsm_state_fns_names {
         //println!("fsm1: sf={:#?}", sfn);
 
@@ -256,19 +256,25 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
             StateFns {
                 parent: #parent_fn, // Ok
                 entry: #entry_fn, // Ok
-                //process: #fsm_name::#process_fn_name, // fails: fsm1: 2 sf_es=Err(Error("expected identifier"))
-                //process: #process_fn_name, // fails:  fsm1: 2 sf_es=Err(Error("expected identifier"))
-                //process: Self::#process_fn_name, // fails: fsm1: 2 sf_es=Err(Error("expected identifier"))
-                process: #fsm_name::initial, // Ok
-                //process: #process_fn_name, // Ok
-                //process: 2, // Ok
+                process: #fsm_name::initial, // "fsm1: was ExprStruct" and runs successfuly
+                //process: #fsm_name::#process_fn_name, // fsm1: 2 sf_es=Err(Error("expected identifier")) fsm1: was NOT ExprStruct
+                //process: 2, // "fsm1: was ExprStruct" but Compile error: expected fn pointer, found `usize`
+                //process: #process_fn_name, // "fsm1: was ExprStruct" but Compile error: expected fn pointer, found `&str`
                 exit: #exit_fn, // Ok
             }
         );
         println!("fsm1: 2.2 #fsm_name::initial          ts={:?}", ts);
         let sf_es = syn::parse2::<syn::ExprStruct>(ts);
         println!("fsm1: 2 sf_es={:?}", &sf_es);
-        //fsm_state_fns.push(sf_es);
+        if let Ok(es) = sf_es {
+            println!("fsm1: was ExprStruct");
+            fsm_state_fns.push(es);
+        } else {
+            println!("fsm1: was NOT ExprStruct");
+        }
+
+        // Only do one StateFns as we have to "hard-code" the name
+        // which is "initial" at the moment.
         break;
     }
     //println!("fsm1: fsm_state_fns:\n{:#?}", fsm_state_fns);
