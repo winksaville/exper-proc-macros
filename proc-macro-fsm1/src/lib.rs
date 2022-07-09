@@ -1,6 +1,9 @@
 #![feature(core_intrinsics)]
 use std::collections::HashMap;
 
+//use std::str::FromStr;
+use proc_macro2::TokenStream as TokenStream2;
+
 use proc_macro::{self, TokenStream};
 use quote::quote;
 use syn::parse::{Parse, ParseStream};
@@ -167,13 +170,51 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
     let fsm_fn_map = fsm.fsm_fn_map;
     println!("fsm1: fsm_fn_map={:?}", fsm_fn_map);
 
-    let mut fsm_state_fns = Vec::<proc_macro::TokenStream>::new();
-    //let mut fsm_state_fns = Vec::<syn::ItemStruct>::new();
+
+    // This is the "real" processing for each state_fns but initializing the "process" field doe not work
+    //let mut fsm_state_fns = Vec::<proc_macro::TokenStream>::new();
+    //for sfn in fsm.fsm_state_fns_names {
+    //    //println!("fsm1: sf={:#?}", sfn);
+
+    //    let process_fn_name = sfn.process_fn_name;
+    //    //println!("fsm1: process_fn_name={}", process_fn_name);
+
+    //    let opt_fn_name = |name: Option<String>| {
+    //        match name {
+    //            Some(name) => quote!(Some(#fsm_name::#name)),
+    //            None => quote!(None),
+    //        }
+    //    };
+    //    let parent_fn = opt_fn_name(sfn.parent_fn_name);
+    //    //println!("fsm1: parent_fn={}", parent_fn);
+    //    let entry_fn = opt_fn_name(sfn.entry_fn_name);
+    //    //println!("fsm1: entry_fn={}", entry_fn);
+    //    let exit_fn = opt_fn_name(sfn.exit_fn_name);
+    //    //println!("fsm1: exit_fn={}", exit_fn);
+
+    //    let sf_ts: proc_macro::TokenStream = quote!(
+    //        StateFns {
+    //            parent: #parent_fn,
+    //            entry: #entry_fn,
+    //            process: #fsm_name::#process_fn_name,
+    //            exit: #exit_fn,
+    //        }
+    //    ).into();
+    //    //println!("fsm1: sf_ts={:#?}", sf_ts);
+    //    fsm_state_fns.push(sf_ts);
+
+    //    //let sf_item_struct = parse_macro_input!(sf_ts as syn::ItemStruct);
+    //    //fsm_state_fns.push(sf_item_struct);
+    //}
+    //println!("fsm1: fsm_state_fns:\n{:#?}", fsm_state_fns);
+
+    // Only one function for now, (break at the bottom of the loop) so not mut
+    let fsm_state_fns = Vec::<syn::ExprStruct>::new();
     for sfn in fsm.fsm_state_fns_names {
         //println!("fsm1: sf={:#?}", sfn);
 
         let process_fn_name = sfn.process_fn_name;
-        //println!("fsm1: process_fn_name={}", process_fn_name);
+        println!("fsm1: process_fn_name={}", process_fn_name);
 
         let opt_fn_name = |name: Option<String>| {
             match name {
@@ -188,19 +229,47 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
         let exit_fn = opt_fn_name(sfn.exit_fn_name);
         //println!("fsm1: exit_fn={}", exit_fn);
 
-        let sf_ts: proc_macro::TokenStream = quote!(
-            StateFns {
-                parent: #parent_fn,
-                entry: #entry_fn,
-                process: #fsm_name::#process_fn_name,
-                exit: #exit_fn,
-            }
-        ).into();
-        //println!("fsm1: sf_ts={:#?}", sf_ts);
-        fsm_state_fns.push(sf_ts);
+        // quote!(initial) outputs a Ident
+        let ts: TokenStream2 = quote!(initial);
+        println!("fsm1: 2-1 quote!(initial)             ts={:?}", ts); // fsm1: 2-1 quote!(initial)             ts=TokenStream [Ident { ident: "initial", span: #5 bytes(64..988) }]
 
-        //let sf_item_struct = parse_macro_input!(sf_ts as syn::ItemStruct);
-        //fsm_state_fns.push(sf_item_struct);
+        // quote!(#process_fn_name) outputs a literal this is what I see with "Self::#process_fn_name"
+        let ts: TokenStream2 = quote!(#process_fn_name);
+        println!("fsm1: 2-0 quote!(#process_fn_name)    ts={:?}", ts); // fsm1: 2-0 quote!(#process_fn_name)    ts=TokenStream [Literal { kind: Str, symbol: "initial", suffix: None, span: #5 bytes(64..988) }] 
+
+        // Fail
+        let ts: TokenStream2 = quote!(
+            StateFns {
+                process: #fsm_name::#process_fn_name,
+            }
+        );
+        println!("fsm1: 2.0 #fsm_name::#process_fn_name ts={:?}", ts);
+
+        // Fails
+        let ts: TokenStream2 = quote!(
+            StateFns {
+                process: Self::#process_fn_name,
+            }
+        );
+        println!("fsm1: 2.1 Self::#process_fn_name      ts={:?}", ts);
+        let ts: TokenStream2 = quote!(
+            StateFns {
+                parent: #parent_fn, // Ok
+                entry: #entry_fn, // Ok
+                //process: #fsm_name::#process_fn_name, // fails: fsm1: 2 sf_es=Err(Error("expected identifier"))
+                //process: #process_fn_name, // fails:  fsm1: 2 sf_es=Err(Error("expected identifier"))
+                //process: Self::#process_fn_name, // fails: fsm1: 2 sf_es=Err(Error("expected identifier"))
+                process: #fsm_name::initial, // Ok
+                //process: #process_fn_name, // Ok
+                //process: 2, // Ok
+                exit: #exit_fn, // Ok
+            }
+        );
+        println!("fsm1: 2.2 #fsm_name::initial          ts={:?}", ts);
+        let sf_es = syn::parse2::<syn::ExprStruct>(ts);
+        println!("fsm1: 2 sf_es={:?}", &sf_es);
+        //fsm_state_fns.push(sf_es);
+        break;
     }
     //println!("fsm1: fsm_state_fns:\n{:#?}", fsm_state_fns);
 
@@ -214,7 +283,6 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
                 #[allow(unused)]
                 #fsm_fields
             ),*
-        
         }
 
         impl #fsm_name {
@@ -289,7 +357,12 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
             fn new() -> Self {
                 let initial_state = #fsm_name::initial;
                 Self {
-                    state_fns: vec![],
+                    //state_fns: vec![],
+                    state_fns: vec![
+                        #(
+                            #fsm_state_fns
+                        ),*
+                    ],
                     current_state_fn: initial_state,
                     previous_state_fn: initial_state,
                     current_state_changed: true,

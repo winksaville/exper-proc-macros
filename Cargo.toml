@@ -11,6 +11,7 @@ members = [
     "proc-macro-derive-using-parse",
     "proc-macro-verbatim",
     "proc-macro-expr-binary",
+    "proc-macro-expr-struct",
     "proc-macro-nesting",
     "proc-macro-fsm1",
 ]
@@ -22,5 +23,6 @@ proc-macro-derive-describe = { path = "proc-macro-derive-describe" }
 proc-macro-derive-using-parse = { path = "proc-macro-derive-using-parse" }
 proc-macro-verbatim = { path = "proc-macro-verbatim" }
 proc-macro-expr-binary = { path = "proc-macro-expr-binary" }
+proc-macro-expr-struct = { path = "proc-macro-expr-struct" }
 proc-macro-nesting = { path = "proc-macro-nesting" }
 proc-macro-fsm1 = { path = "proc-macro-fsm1" }
