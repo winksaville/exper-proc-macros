@@ -44,6 +44,7 @@ fsm1!(
 fn main() {
     // Verify new without type works
     let mut my_new_fsm = MyFsm::new();
+    println!("main: my_new_fsm={}", my_new_fsm.sm.state_fns[0].process as u64);
     my_new_fsm.a_i32 = 321;
     assert_eq!(my_new_fsm.a_i32, 321);
 
