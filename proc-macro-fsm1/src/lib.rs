@@ -47,21 +47,21 @@ pub fn fsm1_state(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
 #[derive(Debug)]
 struct Fsm1 {
-    fsm_name: syn::Ident,
+    fsm_ident: syn::Ident,
     fsm_fields: Vec<syn::Field>,
     fsm_fns: Vec<syn::ItemFn>,
     #[allow(unused)]
     fsm_fn_map: HashMap<String, usize>,
     //fsm_state_fn_idxs: Vec<usize>,
-    fsm_state_fns_names: Vec<StateFnsNames>
+    fsm_state_fn_idents: Vec<StateFnIdents>
 }
 
 #[derive(Debug)]
-struct StateFnsNames {
-    parent_fn_name: Option<syn::Ident>,
-    entry_fn_name: Option<syn::Ident>,
-    process_fn_name: syn::Ident,
-    exit_fn_name: Option<syn::Ident>,
+struct StateFnIdents {
+    parent_fn_ident: Option<syn::Ident>,
+    entry_fn_ident: Option<syn::Ident>,
+    process_fn_ident: syn::Ident,
+    exit_fn_ident: Option<syn::Ident>,
 }
 
 impl Parse for Fsm1 {
@@ -108,44 +108,44 @@ impl Parse for Fsm1 {
         }
 
 
-        let mut state_fns_names = Vec::<StateFnsNames>::new();
+        let mut state_fn_idents = Vec::<StateFnIdents>::new();
         for process_fn_idx in state_fn_idxs.clone() {
             let item_fn = &fns[process_fn_idx];
-            let process_fn_name = item_fn.sig.ident.clone();
-            let new_ident = |name: syn::Ident, suffix: &str| {
-                syn::Ident::new((name.to_string() + suffix.to_owned().as_str()).as_str(), name.span())
+            let process_fn_ident = item_fn.sig.ident.clone();
+            let new_ident = |ident: syn::Ident, suffix: &str| {
+                syn::Ident::new((ident.to_string() + suffix.to_owned().as_str()).as_str(), ident.span())
             };
-            let entry_fn_name = new_ident(process_fn_name.clone(), "_exit");
-            let exit_fn_name = new_ident(process_fn_name.clone(), "_exit");
+            let entry_fn_ident = new_ident(process_fn_ident.clone(), "_exit");
+            let exit_fn_ident = new_ident(process_fn_ident.clone(), "_exit");
 
-            let entry_fn_name_opt = if fn_map.get(entry_fn_name.to_string().as_str()).is_some() {
-                Some(entry_fn_name)
+            let entry_fn_ident_opt = if fn_map.get(entry_fn_ident.to_string().as_str()).is_some() {
+                Some(entry_fn_ident)
             } else {
                 None
             };
 
-            let exit_fn_name_opt = if fn_map.get(exit_fn_name.to_string().as_str()).is_some() {
-                Some(exit_fn_name)
+            let exit_fn_ident_opt = if fn_map.get(exit_fn_ident.to_string().as_str()).is_some() {
+                Some(exit_fn_ident)
             } else {
                 None
             };
 
-            state_fns_names.push(StateFnsNames {
-                parent_fn_name: None,
-                entry_fn_name: entry_fn_name_opt,
-                process_fn_name,
-                exit_fn_name: exit_fn_name_opt,
+            state_fn_idents.push(StateFnIdents {
+                parent_fn_ident: None,
+                entry_fn_ident: entry_fn_ident_opt,
+                process_fn_ident,
+                exit_fn_ident: exit_fn_ident_opt,
             });
         }
 
         //println!("Fsm1::parse:-");
         Ok(Fsm1 {
-            fsm_name: item_struct.ident.clone(),
+            fsm_ident: item_struct.ident.clone(),
             fsm_fields: fields,
             fsm_fns: fns,
             fsm_fn_map: fn_map,
             //fsm_state_fn_idxs: state_fn_idxs,
-            fsm_state_fns_names: state_fns_names,
+            fsm_state_fn_idents: state_fn_idents,
         })
     }
 }
@@ -161,8 +161,8 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
     let fsm = parse_macro_input!(in_ts as Fsm1);
     //println!("fsm1: fsm={:#?}", fsm);
 
-    let fsm_name = fsm.fsm_name;
-    //println!("fsm1: fsm_name={:#?}", fsm_name);
+    let fsm_ident = fsm.fsm_ident;
+    //println!("fsm1: fsm_ident={:#?}", fsm_ident);
 
     let fsm_fields = fsm.fsm_fields; 
     //println!("fsm1: fsm_fields={:#?}", fsm_fields);
@@ -174,30 +174,30 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
     //println!("fsm1: fsm_fn_map={:?}", fsm_fn_map);
 
     let mut fsm_state_fns = Vec::<syn::ExprStruct>::new();
-    for sfn in fsm.fsm_state_fns_names {
+    for sfn in fsm.fsm_state_fn_idents {
         //println!("fsm1: sf={:#?}", sfn);
 
-        let process_fn_name = sfn.process_fn_name;
-        //println!("fsm1: process_fn_name={}", process_fn_name);
+        let process_fn_ident = sfn.process_fn_ident;
+        //println!("fsm1: process_fn_ident={}", process_fn_ident);
 
-        let opt_fn_name = |name: Option<syn::Ident>| {
-            match name {
-                Some(name) => quote!(Some(#fsm_name::#name)),
+        let opt_fn_ident = |ident: Option<syn::Ident>| {
+            match ident {
+                Some(ident) => quote!(Some(#fsm_ident::#ident)),
                 None => quote!(None),
             }
         };
-        let parent_fn = opt_fn_name(sfn.parent_fn_name);
+        let parent_fn = opt_fn_ident(sfn.parent_fn_ident);
         //println!("fsm1: parent_fn={}", parent_fn);
-        let entry_fn = opt_fn_name(sfn.entry_fn_name);
+        let entry_fn = opt_fn_ident(sfn.entry_fn_ident);
         //println!("fsm1: entry_fn={}", entry_fn);
-        let exit_fn = opt_fn_name(sfn.exit_fn_name);
+        let exit_fn = opt_fn_ident(sfn.exit_fn_ident);
         //println!("fsm1: exit_fn={}", exit_fn);
 
         let ts: TokenStream2 = quote!(
             StateFns {
                 parent: #parent_fn,
                 entry: #entry_fn,
-                process: #fsm_name::#process_fn_name,
+                process: #fsm_ident::#process_fn_ident,
                 exit: #exit_fn,
             }
         );
@@ -211,7 +211,7 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
     let output = quote!(
         //#[derive(Debug)]
         #[derive(Default)]
-        struct #fsm_name {
+        struct #fsm_ident {
             sm: SM, // Why is this not seend by vscode code completion?
 
             #(
@@ -220,7 +220,7 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
             ),*
         }
 
-        impl #fsm_name {
+        impl #fsm_ident {
             pub fn new() -> Self {
                 Default::default()
             }
@@ -259,7 +259,7 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
             }
         }
 
-        type StateFn = fn(&mut #fsm_name, /* &Protocol1 */) -> StateResult;
+        type StateFn = fn(&mut #fsm_ident, /* &Protocol1 */) -> StateResult;
 
         enum StateResult {
             NotHandled,
@@ -290,7 +290,7 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
 
         impl SM {
             fn new() -> Self {
-                let initial_state = #fsm_name::initial;
+                let initial_state = #fsm_ident::initial;
                 Self {
                     //state_fns: vec![],
                     state_fns: vec![
