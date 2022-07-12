@@ -98,6 +98,7 @@ impl Parse for Fsm1 {
                         // Save the index of this function in state_fn_idxs
                         state_fn_idxs.push(fns.len());
                         //println!("Fsm1::parse: {} has a fsm1_state attribute, idx={}", a_fn.sig.ident.to_string(), state_fn_idxs.last().unwrap());
+                        break; // Never push more than one, although there should only be one
                     }
                 }
             }
@@ -171,14 +172,19 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
     //println!("fsm1: fsm_fns={:#?}", fsm_fns);
 
     let _fsm_fn_map = fsm.fsm_fn_map;
-    //println!("fsm1: fsm_fn_map={:?}", fsm_fn_map);
+    //println!("fsm1: fsm_fn_map={:?}", _fsm_fn_map);
 
     let mut fsm_state_fns = Vec::<syn::ExprStruct>::new();
+    let mut fsm_initial_state_fns_handle: Option<usize> = None;
     for sfn in fsm.fsm_state_fn_idents {
         //println!("fsm1: sf={:#?}", sfn);
 
         let process_fn_ident = sfn.process_fn_ident;
         //println!("fsm1: process_fn_ident={}", process_fn_ident);
+        if process_fn_ident.to_string() == "initial" {
+            assert_eq!(fsm_initial_state_fns_handle, None);
+            fsm_initial_state_fns_handle = Some(fsm_state_fns.len());
+        }
 
         let opt_fn_ident = |ident: Option<syn::Ident>| {
             match ident {
@@ -209,6 +215,13 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
     //println!("fsm1: fsm_state_fns:\n{:#?}", fsm_state_fns);
 
     let fsm_state_fns_len = fsm_state_fns.len();
+    let initial_state_handle = if let Some(handle) = fsm_initial_state_fns_handle {
+        handle
+    } else {
+        // TODO: Better error handling
+        panic!("No initial state");
+    };
+    //println!("fsm1: fsm_state_fns_len: {} initial_state_handle={}", fsm_state_fns_len, initial_state_handle);
 
     let output = quote!(
         //#[derive(Debug)]
@@ -234,27 +247,27 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
 
             pub fn dispatch(&mut self) {
                 if self.sm.current_state_changed {
-                    // Handle changing state such as executing "enter code" for
+                    // TODO; Handle changing state such as executing "enter code" for
                     // the current_state state
                     self.sm.current_state_changed = false;
                 }
 
-                match (self.sm.current_state_fn)(self) {
+                match (self.sm.state_fns[self.sm.current_state_fns_handle].process)(self) {
                     StateResult::NotHandled => {
-                        // TBD, execute entry fn of current_state
+                        // TODO; execute "parent.process".
                     }
                     StateResult::Handled => {
                         // Nothing to do
                     }
                     StateResult::TransitionTo(next_state) => {
-                        self.sm.previous_state_fn = self.sm.current_state_fn;
-                        self.sm.current_state_fn = next_state;
+                        self.sm.previous_state_fns_handle = self.sm.current_state_fns_handle;
+                        self.sm.current_state_fns_handle = next_state;
                         self.sm.current_state_changed = true;
                     }
                 }
 
                 if self.sm.current_state_changed {
-                    // Handle changing state such as executing exit "code" for
+                    // TODO; Handle changing state such as executing exit "code" for
                     // the previous state, do not change current_state_changed
                     // so we execute "enter_code" on next dispatch.
                 }
@@ -262,11 +275,12 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
         }
 
         type StateFn = fn(&mut #fsm_ident, /* &Protocol1 */) -> StateResult;
+        type StateFnsHandle = usize;
 
         enum StateResult {
             NotHandled,
             Handled,
-            TransitionTo(StateFn),
+            TransitionTo(usize),
         }
 
         struct StateFns {
@@ -279,8 +293,8 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
         //#[derive(Debug)]
         struct SM {
             state_fns: [StateFns; #fsm_state_fns_len],
-            current_state_fn: StateFn,
-            previous_state_fn: StateFn,
+            current_state_fns_handle: StateFnsHandle,
+            previous_state_fns_handle: StateFnsHandle,
             current_state_changed: bool,
         }
 
@@ -292,16 +306,14 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
 
         impl SM {
             fn new() -> Self {
-                let initial_state = #fsm_ident::initial;
                 Self {
-                    //state_fns: vec![],
                     state_fns: [
                         #(
                             #fsm_state_fns
                         ),*
                     ],
-                    current_state_fn: initial_state,
-                    previous_state_fn: initial_state,
+                    current_state_fns_handle: #initial_state_handle,
+                    previous_state_fns_handle: #initial_state_handle,
                     current_state_changed: true,
                 }
             }
