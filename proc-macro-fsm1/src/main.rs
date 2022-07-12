@@ -171,6 +171,51 @@ mod tests {
     }
 
     #[test]
+    fn test_entry_exit() {
+        fsm1!(
+            struct Test {
+                initial_entry_cnt: usize,
+                initial_cnt: usize,
+                initial_exit_cnt: usize,
+            }
+
+            fn initial_entry(&mut self) {
+                self.initial_entry_cnt += 1;
+            }
+
+            #[fsm1_state]
+            fn initial(& mut self) -> StateResult {
+                self.initial_cnt += 1;
+                StateResult::TransitionTo(1usize) //Test::done)
+            }
+
+            fn initial_exit(&mut self) {
+                self.initial_exit_cnt += 1;
+            }
+
+            #[fsm1_state]
+            fn done(& mut self) -> StateResult {
+                StateResult::Handled
+            }
+        );
+
+        let mut fsm = Test::new();
+        assert_eq!(fsm.initial_entry_cnt, 0);
+        assert_eq!(fsm.initial_cnt, 0);
+        assert_eq!(fsm.initial_exit_cnt, 0);
+
+        fsm.dispatch();
+        assert_eq!(fsm.initial_entry_cnt, 1);
+        assert_eq!(fsm.initial_cnt, 1);
+        assert_eq!(fsm.initial_exit_cnt, 1);
+
+        fsm.dispatch();
+        assert_eq!(fsm.initial_entry_cnt, 1);
+        assert_eq!(fsm.initial_cnt, 1);
+        assert_eq!(fsm.initial_exit_cnt, 1);
+    }
+
+    #[test]
     fn test_dispatch() {
         fsm1!(
             struct TestDispatch {}

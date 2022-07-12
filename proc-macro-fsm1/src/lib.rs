@@ -217,8 +217,9 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
 
             pub fn dispatch(&mut self) {
                 if self.sm.current_state_changed {
-                    // TODO; Handle changing state such as executing "enter code" for
-                    // the current_state state
+                    if let Some(entry) = self.sm.state_fns[self.sm.current_state_fns_handle].entry {
+                        entry(self);
+                    }
                     self.sm.current_state_changed = false;
                 }
 
@@ -237,9 +238,9 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
                 }
 
                 if self.sm.current_state_changed {
-                    // TODO; Handle changing state such as executing exit "code" for
-                    // the previous state, do not change current_state_changed
-                    // so we execute "enter_code" on next dispatch.
+                    if let Some(exit) = self.sm.state_fns[self.sm.previous_state_fns_handle].exit {
+                        exit(self);
+                    }
                 }
             }
         }
