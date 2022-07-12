@@ -10,8 +10,8 @@ fsm1!(
         println!("MyFSM: non_state_fns_handle self.data={}", self.a_i32);
     }
 
-    fn initial_entry(&mut self) {
-        println!("MyFSM: initial_entry self.a_i32={}", self.a_i32);
+    fn initial_enter(&mut self) {
+        println!("MyFSM: initial_enter self.a_i32={}", self.a_i32);
     }
 
     #[fsm1_state]
@@ -122,6 +122,43 @@ mod tests {
     }
 
     #[test]
+    fn test_dispatch() {
+        fsm1!(
+            struct TestDispatch {}
+
+            #[fsm1_state]
+            fn initial(& mut self) -> StateResult {
+                StateResult::TransitionTo(1usize) //TestDispatch::done)
+            }
+
+            #[fsm1_state]
+            fn done(& mut self) -> StateResult {
+                StateResult::Handled
+            }
+        );
+
+        let mut fsm = TestDispatch::new();
+        assert_eq!(fsm.sm.current_state_fns_handle as usize, 0); //TestDispatch::initial as usize);
+        assert_eq!(fsm.sm.previous_state_fns_handle as usize, 0); //TestDispatch::initial as usize);
+        assert!(fsm.sm.current_state_changed);
+
+        fsm.dispatch();
+        assert_eq!(fsm.sm.current_state_fns_handle as usize, 1); //TestDispatch::done as usize);
+        assert_eq!(fsm.sm.previous_state_fns_handle as usize, 0); //TestDispatch::initial as usize);
+        assert!(fsm.sm.current_state_changed);
+
+        fsm.dispatch();
+        assert_eq!(fsm.sm.current_state_fns_handle as usize, 1); //TestDispatch::done as usize);
+        assert_eq!(fsm.sm.previous_state_fns_handle as usize, 0); //TestDispatch::initial as usize);
+        assert!(!fsm.sm.current_state_changed);
+
+        fsm.dispatch();
+        assert_eq!(fsm.sm.current_state_fns_handle as usize, 1); //TestDispatch::done as usize);
+        assert_eq!(fsm.sm.previous_state_fns_handle as usize, 0); //TestDispatch::initial as usize);
+        assert!(!fsm.sm.current_state_changed);
+    }
+
+    #[test]
     fn test_initialization_via_new() {
         fsm1!(
             struct Test {}
@@ -171,16 +208,127 @@ mod tests {
     }
 
     #[test]
-    fn test_entry_exit() {
+    fn test_no_enter_exit() {
         fsm1!(
             struct Test {
-                initial_entry_cnt: usize,
+                initial_enter_cnt: usize,
                 initial_cnt: usize,
                 initial_exit_cnt: usize,
+                done_enter_cnt: usize,
+                done_cnt: usize,
+                done_exit_cnt: usize,
             }
 
-            fn initial_entry(&mut self) {
-                self.initial_entry_cnt += 1;
+            #[fsm1_state]
+            fn initial(& mut self) -> StateResult {
+                self.initial_cnt += 1;
+                StateResult::TransitionTo(1usize) //Test::done)
+            }
+
+            #[fsm1_state]
+            fn done(& mut self) -> StateResult {
+                self.done_cnt += 1;
+                StateResult::Handled
+            }
+        );
+
+        let mut fsm = Test::new();
+        assert_eq!(fsm.initial_enter_cnt, 0);
+        assert_eq!(fsm.initial_cnt, 0);
+        assert_eq!(fsm.initial_exit_cnt, 0);
+        assert_eq!(fsm.done_enter_cnt, 0);
+        assert_eq!(fsm.done_cnt, 0);
+        assert_eq!(fsm.done_exit_cnt, 0);
+
+        fsm.dispatch();
+        assert_eq!(fsm.initial_enter_cnt, 0);
+        assert_eq!(fsm.initial_cnt, 1);
+        assert_eq!(fsm.initial_exit_cnt, 0);
+        assert_eq!(fsm.done_enter_cnt, 0);
+        assert_eq!(fsm.done_cnt, 0);
+        assert_eq!(fsm.done_exit_cnt, 0);
+
+        fsm.dispatch();
+        assert_eq!(fsm.initial_enter_cnt, 0);
+        assert_eq!(fsm.initial_cnt, 1);
+        assert_eq!(fsm.initial_exit_cnt, 0);
+        assert_eq!(fsm.done_enter_cnt, 0);
+        assert_eq!(fsm.done_cnt, 1);
+        assert_eq!(fsm.done_exit_cnt, 0);
+    }
+
+    #[test]
+    fn test_enter() {
+        fsm1!(
+            struct Test {
+                initial_enter_cnt: usize,
+                initial_cnt: usize,
+                initial_exit_cnt: usize,
+                done_enter_cnt: usize,
+                done_cnt: usize,
+                done_exit_cnt: usize,
+            }
+
+            fn initial_enter(&mut self) {
+                println!("test_enter: initial_enter");
+                self.initial_enter_cnt += 1;
+            }
+
+            #[fsm1_state]
+            fn initial(& mut self) -> StateResult {
+                println!("test_enter: initial");
+                self.initial_cnt += 1;
+                StateResult::TransitionTo(1usize) //Test::done)
+            }
+
+            #[fsm1_state]
+            fn done(& mut self) -> StateResult {
+                println!("test_enter: done");
+                self.done_cnt += 1;
+                StateResult::Handled
+            }
+
+            fn done_enter(&mut self) {
+                println!("test_enter: done_enter");
+                self.done_enter_cnt += 1;
+            }
+        );
+
+        let mut fsm = Test::new();
+        assert_eq!(fsm.initial_enter_cnt, 0);
+        assert_eq!(fsm.initial_cnt, 0);
+        assert_eq!(fsm.initial_exit_cnt, 0);
+        assert_eq!(fsm.done_enter_cnt, 0);
+        assert_eq!(fsm.done_cnt, 0);
+        assert_eq!(fsm.done_exit_cnt, 0);
+
+        fsm.dispatch();
+        assert_eq!(fsm.initial_enter_cnt, 1);
+        assert_eq!(fsm.initial_cnt, 1);
+        assert_eq!(fsm.initial_exit_cnt, 0);
+        assert_eq!(fsm.done_enter_cnt, 0);
+        assert_eq!(fsm.done_cnt, 0);
+        assert_eq!(fsm.done_exit_cnt, 0);
+
+        fsm.dispatch();
+        assert_eq!(fsm.initial_enter_cnt, 1);
+        assert_eq!(fsm.initial_cnt, 1);
+        assert_eq!(fsm.initial_exit_cnt, 0);
+        assert_eq!(fsm.done_enter_cnt, 1);
+        assert_eq!(fsm.done_cnt, 1);
+        assert_eq!(fsm.done_exit_cnt, 0);
+    }
+
+    #[test]
+    fn test_exit() {
+        fsm1!(
+            struct Test {
+                initial_enter_cnt: usize,
+                initial_cnt: usize,
+                initial_exit_cnt: usize,
+                done_enter_cnt: usize,
+                done_cnt: usize,
+                done_exit_cnt: usize,
             }
 
             #[fsm1_state]
@@ -193,62 +341,180 @@ mod tests {
                 self.initial_exit_cnt += 1;
             }
 
+            fn done_exit(&mut self) {
+                self.done_exit_cnt += 1;
+            }
+
             #[fsm1_state]
             fn done(& mut self) -> StateResult {
+                self.done_cnt += 1;
                 StateResult::Handled
             }
         );
 
         let mut fsm = Test::new();
-        assert_eq!(fsm.initial_entry_cnt, 0);
+        assert_eq!(fsm.initial_enter_cnt, 0);
         assert_eq!(fsm.initial_cnt, 0);
         assert_eq!(fsm.initial_exit_cnt, 0);
+        assert_eq!(fsm.done_enter_cnt, 0);
+        assert_eq!(fsm.done_cnt, 0);
+        assert_eq!(fsm.done_exit_cnt, 0);
 
         fsm.dispatch();
-        assert_eq!(fsm.initial_entry_cnt, 1);
+        assert_eq!(fsm.initial_enter_cnt, 0);
         assert_eq!(fsm.initial_cnt, 1);
         assert_eq!(fsm.initial_exit_cnt, 1);
+        assert_eq!(fsm.done_enter_cnt, 0);
+        assert_eq!(fsm.done_cnt, 0);
+        assert_eq!(fsm.done_exit_cnt, 0);
 
         fsm.dispatch();
-        assert_eq!(fsm.initial_entry_cnt, 1);
+        assert_eq!(fsm.initial_enter_cnt, 0);
         assert_eq!(fsm.initial_cnt, 1);
         assert_eq!(fsm.initial_exit_cnt, 1);
+        assert_eq!(fsm.done_enter_cnt, 0);
+        assert_eq!(fsm.done_cnt, 1);
+        assert_eq!(fsm.done_exit_cnt, 0);
     }
 
     #[test]
-    fn test_dispatch() {
+    fn test_both_enter_exit() {
         fsm1!(
-            struct TestDispatch {}
+            struct Test {
+                initial_enter_cnt: usize,
+                initial_cnt: usize,
+                initial_exit_cnt: usize,
+                do_work_enter_cnt: usize,
+                do_work_cnt: usize,
+                do_work_exit_cnt: usize,
+                done_enter_cnt: usize,
+                done_cnt: usize,
+                done_exit_cnt: usize,
+            }
 
-            #[fsm1_state]
-            fn initial(& mut self) -> StateResult {
-                StateResult::TransitionTo(1usize) //TestDispatch::done)
+            fn initial_enter(&mut self) {
+                self.initial_enter_cnt += 1;
             }
 
             #[fsm1_state]
-            fn done(& mut self) -> StateResult {
+            fn initial(&mut self) -> StateResult {
+                self.initial_cnt += 1;
+                StateResult::TransitionTo(1) //Test::do_work)
+            }
+
+            fn initial_exit(&mut self) {
+                self.initial_exit_cnt += 1;
+            }
+
+            fn do_work_exit(&mut self) {
+                self.do_work_exit_cnt += 1;
+            }
+
+            #[fsm1_state]
+            fn do_work(&mut self) -> StateResult {
+                self.do_work_cnt += 1;
+                if self.do_work_cnt < 3 {
+                    StateResult::Handled
+                } else {
+                    StateResult::TransitionTo(2) //Test::done
+                }
+            }
+
+            fn do_work_enter(&mut self) {
+                self.do_work_enter_cnt += 1;
+            }
+
+            fn done_exit(&mut self) {
+                self.done_exit_cnt += 1;
+            }
+
+            #[fsm1_state]
+            fn done(&mut self) -> StateResult {
+                self.done_cnt += 1;
                 StateResult::Handled
+            }
+
+            fn done_enter(&mut self) {
+                self.done_enter_cnt += 1;
             }
         );
 
-        let mut fsm = TestDispatch::new();
-        assert_eq!(fsm.sm.current_state_fns_handle as usize, 0); //TestDispatch::initial as usize);
-        assert_eq!(fsm.sm.previous_state_fns_handle as usize, 0); //TestDispatch::initial as usize);
-        assert!(fsm.sm.current_state_changed);
+        let mut fsm = Test::new();
+        assert_eq!(fsm.initial_enter_cnt, 0);
+        assert_eq!(fsm.initial_cnt, 0);
+        assert_eq!(fsm.initial_exit_cnt, 0);
+        assert_eq!(fsm.do_work_enter_cnt, 0);
+        assert_eq!(fsm.do_work_cnt, 0);
+        assert_eq!(fsm.do_work_exit_cnt, 0);
+        assert_eq!(fsm.done_enter_cnt, 0);
+        assert_eq!(fsm.done_cnt, 0);
+        assert_eq!(fsm.done_exit_cnt, 0);
 
         fsm.dispatch();
-        assert_eq!(fsm.sm.current_state_fns_handle as usize, 1); //TestDispatch::done as usize);
-        assert_eq!(fsm.sm.previous_state_fns_handle as usize, 0); //TestDispatch::initial as usize);
-        assert!(fsm.sm.current_state_changed);
+        assert_eq!(fsm.initial_enter_cnt, 1);
+        assert_eq!(fsm.initial_cnt, 1);
+        assert_eq!(fsm.initial_exit_cnt, 1);
+        assert_eq!(fsm.do_work_enter_cnt, 0);
+        assert_eq!(fsm.do_work_cnt, 0);
+        assert_eq!(fsm.do_work_exit_cnt, 0);
+        assert_eq!(fsm.done_enter_cnt, 0);
+        assert_eq!(fsm.done_cnt, 0);
+        assert_eq!(fsm.done_exit_cnt, 0);
 
         fsm.dispatch();
-        assert_eq!(fsm.sm.current_state_fns_handle as usize, 1); //TestDispatch::done as usize);
-        assert_eq!(fsm.sm.previous_state_fns_handle as usize, 0); //TestDispatch::initial as usize);
-        assert!(!fsm.sm.current_state_changed);
+        assert_eq!(fsm.initial_enter_cnt, 1);
+        assert_eq!(fsm.initial_cnt, 1);
+        assert_eq!(fsm.initial_exit_cnt, 1);
+        assert_eq!(fsm.do_work_enter_cnt, 1);
+        assert_eq!(fsm.do_work_cnt, 1);
+        assert_eq!(fsm.do_work_exit_cnt, 0);
+        assert_eq!(fsm.done_enter_cnt, 0);
+        assert_eq!(fsm.done_cnt, 0);
+        assert_eq!(fsm.done_exit_cnt, 0);
 
         fsm.dispatch();
-        assert_eq!(fsm.sm.current_state_fns_handle as usize, 1); //TestDispatch::done as usize);
-        assert_eq!(fsm.sm.previous_state_fns_handle as usize, 0); //TestDispatch::initial as usize);
-        assert!(!fsm.sm.current_state_changed);
+        assert_eq!(fsm.initial_enter_cnt, 1);
+        assert_eq!(fsm.initial_cnt, 1);
+        assert_eq!(fsm.initial_exit_cnt, 1);
+        assert_eq!(fsm.do_work_enter_cnt, 1);
+        assert_eq!(fsm.do_work_cnt, 2);
+        assert_eq!(fsm.do_work_exit_cnt, 0);
+        assert_eq!(fsm.done_enter_cnt, 0);
+        assert_eq!(fsm.done_cnt, 0);
+        assert_eq!(fsm.done_exit_cnt, 0);
+
+        fsm.dispatch();
+        assert_eq!(fsm.initial_enter_cnt, 1);
+        assert_eq!(fsm.initial_cnt, 1);
+        assert_eq!(fsm.initial_exit_cnt, 1);
+        assert_eq!(fsm.do_work_enter_cnt, 1);
+        assert_eq!(fsm.do_work_cnt, 3);
+        assert_eq!(fsm.do_work_exit_cnt, 1);
+        assert_eq!(fsm.done_enter_cnt, 0);
+        assert_eq!(fsm.done_cnt, 0);
+        assert_eq!(fsm.done_exit_cnt, 0);
+
+        fsm.dispatch();
+        assert_eq!(fsm.initial_enter_cnt, 1);
+        assert_eq!(fsm.initial_cnt, 1);
+        assert_eq!(fsm.initial_exit_cnt, 1);
+        assert_eq!(fsm.do_work_enter_cnt, 1);
+        assert_eq!(fsm.do_work_cnt, 3);
+        assert_eq!(fsm.do_work_exit_cnt, 1);
+        assert_eq!(fsm.done_enter_cnt, 1);
+        assert_eq!(fsm.done_cnt, 1);
+        assert_eq!(fsm.done_exit_cnt, 0);
+
+        fsm.dispatch();
+        assert_eq!(fsm.initial_enter_cnt, 1);
+        assert_eq!(fsm.initial_cnt, 1);
+        assert_eq!(fsm.initial_exit_cnt, 1);
+        assert_eq!(fsm.do_work_enter_cnt, 1);
+        assert_eq!(fsm.do_work_cnt, 3);
+        assert_eq!(fsm.do_work_exit_cnt, 1);
+        assert_eq!(fsm.done_enter_cnt, 1);
+        assert_eq!(fsm.done_cnt, 2);
+        assert_eq!(fsm.done_exit_cnt, 0);
     }
+
 }

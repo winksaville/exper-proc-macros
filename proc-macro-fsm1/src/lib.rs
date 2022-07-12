@@ -29,7 +29,7 @@ struct Fsm1 {
 #[derive(Debug)]
 struct StateFnIdents {
     parent_fn_ident: Option<syn::Ident>,
-    entry_fn_ident: Option<syn::Ident>,
+    enter_fn_ident: Option<syn::Ident>,
     process_fn_ident: syn::Ident,
     exit_fn_ident: Option<syn::Ident>,
 }
@@ -86,11 +86,11 @@ impl Parse for Fsm1 {
             let new_ident = |ident: syn::Ident, suffix: &str| {
                 syn::Ident::new((ident.to_string() + suffix.to_owned().as_str()).as_str(), ident.span())
             };
-            let entry_fn_ident = new_ident(process_fn_ident.clone(), "_entry");
+            let enter_fn_ident = new_ident(process_fn_ident.clone(), "_enter");
             let exit_fn_ident = new_ident(process_fn_ident.clone(), "_exit");
 
-            let entry_fn_ident_opt = if fn_map.get(entry_fn_ident.to_string().as_str()).is_some() {
-                Some(entry_fn_ident)
+            let enter_fn_ident_opt = if fn_map.get(enter_fn_ident.to_string().as_str()).is_some() {
+                Some(enter_fn_ident)
             } else {
                 None
             };
@@ -103,7 +103,7 @@ impl Parse for Fsm1 {
 
             state_fn_idents.push(StateFnIdents {
                 parent_fn_ident: None,
-                entry_fn_ident: entry_fn_ident_opt,
+                enter_fn_ident: enter_fn_ident_opt,
                 process_fn_ident,
                 exit_fn_ident: exit_fn_ident_opt,
             });
@@ -164,15 +164,15 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
         };
         let parent_fn = opt_fn_ident(sfn.parent_fn_ident);
         //println!("fsm1: parent_fn={}", parent_fn);
-        let entry_fn = opt_fn_ident(sfn.entry_fn_ident);
-        //println!("fsm1: entry_fn={}", entry_fn);
+        let enter_fn = opt_fn_ident(sfn.enter_fn_ident);
+        //println!("fsm1: enter_fn={}", enter_fn);
         let exit_fn = opt_fn_ident(sfn.exit_fn_ident);
         //println!("fsm1: exit_fn={}", exit_fn);
 
         let ts: TokenStream2 = quote!(
             StateFns {
                 parent: #parent_fn,
-                entry: #entry_fn,
+                enter: #enter_fn,
                 process: #fsm_ident::#process_fn_ident,
                 exit: #exit_fn,
             }
@@ -217,8 +217,8 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
 
             pub fn dispatch(&mut self) {
                 if self.sm.current_state_changed {
-                    if let Some(entry) = self.sm.state_fns[self.sm.current_state_fns_handle].entry {
-                        entry(self);
+                    if let Some(enter) = self.sm.state_fns[self.sm.current_state_fns_handle].enter {
+                        enter(self);
                     }
                     self.sm.current_state_changed = false;
                 }
@@ -246,7 +246,7 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
         }
 
         type StateFn = fn(&mut #fsm_ident, /* &Protocol1 */) -> StateResult;
-        type StateFnEntry = fn(&mut #fsm_ident, /* &Protocol1 */);
+        type StateFnEnter = fn(&mut #fsm_ident, /* &Protocol1 */);
         type StateFnExit = fn(&mut #fsm_ident, /* &Protocol1 */);
         type StateFnsHandle = usize;
 
@@ -258,7 +258,7 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
 
         struct StateFns {
             parent: Option<StateFn>,
-            entry: Option<StateFnEntry>,
+            enter: Option<StateFnEnter>,
             process: StateFn,
             exit: Option<StateFnExit>,
         }
