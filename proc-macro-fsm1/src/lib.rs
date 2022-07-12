@@ -208,6 +208,8 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
     }
     //println!("fsm1: fsm_state_fns:\n{:#?}", fsm_state_fns);
 
+    let fsm_state_fns_len = fsm_state_fns.len();
+
     let output = quote!(
         //#[derive(Debug)]
         #[derive(Default)]
@@ -276,7 +278,7 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
 
         //#[derive(Debug)]
         struct SM {
-            state_fns: Vec<StateFns>,
+            state_fns: [StateFns; #fsm_state_fns_len],
             current_state_fn: StateFn,
             previous_state_fn: StateFn,
             current_state_changed: bool,
@@ -293,7 +295,7 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
                 let initial_state = #fsm_ident::initial;
                 Self {
                     //state_fns: vec![],
-                    state_fns: vec![
+                    state_fns: [
                         #(
                             #fsm_state_fns
                         ),*
