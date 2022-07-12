@@ -1,7 +1,6 @@
 #![feature(core_intrinsics)]
 use std::collections::HashMap;
 
-//use std::str::FromStr;
 use proc_macro2::TokenStream as TokenStream2;
 
 use proc_macro::{self, TokenStream};
@@ -9,35 +8,6 @@ use quote::quote;
 use syn::parse::{Parse, ParseStream};
 use syn::{parse_macro_input, Result, ItemFn, Macro, File};
 use syn::visit::{self, Visit};
-
-#[derive(Debug)]
-struct EnterFn {
-    #[allow(unused)]
-    for_state_fn: syn::Ident,
-}
-
-impl Parse for EnterFn {
-    fn parse(input: ParseStream) -> Result<Self> {
-        //println!("parse for EnterFn: input={:#?}", input);
-        let ident = input.parse::<syn::Ident>()?;
-        Ok(EnterFn {
-            for_state_fn: ident
-        })
-    }
-}
-
-#[proc_macro_attribute]
-pub fn fsm1_state_entry_for(attr: TokenStream, item: TokenStream) -> TokenStream {
-    //println!("proc_macro_attribute fsm1_state_entry_for:\nattr={:#?}\nitem={:#?}\n", attr, item);
-
-    let r = parse_macro_input!(attr as EnterFn);
-    //println!("proc_macro_attribute fsm1_state_entry_for: r={:#?}", r);
-
-    let _name = r.for_state_fn.to_string();
-    //println!("fms1_state_entry_for: name={}", name);
-
-    item
-}
 
 #[proc_macro_attribute]
 pub fn fsm1_state(_attr: TokenStream, item: TokenStream) -> TokenStream {

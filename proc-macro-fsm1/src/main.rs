@@ -1,4 +1,4 @@
-use proc_macro_fsm1::{fsm1, fsm1_state, fsm1_state_entry_for};
+use proc_macro_fsm1::{fsm1, fsm1_state};
 
 fsm1!(
     struct MyFsm {
@@ -10,7 +10,6 @@ fsm1!(
         println!("MyFSM: non_state_fns_handle self.data={}", self.a_i32);
     }
 
-    #[fsm1_state_entry_for(initial)]
     fn initial_entry(&mut self) {
         println!("MyFSM: initial_entry self.a_i32={}", self.a_i32);
     }
