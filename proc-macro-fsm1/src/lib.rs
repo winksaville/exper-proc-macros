@@ -6,8 +6,8 @@ use proc_macro2::TokenStream as TokenStream2;
 use proc_macro::{self, TokenStream};
 use quote::quote;
 use syn::parse::{Parse, ParseStream};
-use syn::{parse_macro_input, Result, ItemFn, Macro, File};
 use syn::visit::{self, Visit};
+use syn::{parse_macro_input, File, ItemFn, Macro, Result};
 
 #[proc_macro_attribute]
 pub fn fsm1_state(_attr: TokenStream, item: TokenStream) -> TokenStream {
@@ -23,7 +23,7 @@ struct Fsm1 {
     #[allow(unused)]
     fsm_fn_map: HashMap<String, usize>,
     //fsm_state_fn_idxs: Vec<usize>,
-    fsm_state_fn_idents: Vec<StateFnIdents>
+    fsm_state_fn_idents: Vec<StateFnIdents>,
 }
 
 #[derive(Debug)]
@@ -44,9 +44,7 @@ impl Parse for Fsm1 {
 
         // Parse all of the FSM1 data fields
         let fields: Vec<syn::Field> = match item_struct.fields {
-            syn::Fields::Named(fields_named) => {
-                fields_named.named.iter().cloned().collect()
-            }
+            syn::Fields::Named(fields_named) => fields_named.named.iter().cloned().collect(),
             _ => {
                 let err = syn::Error::new_spanned(item_struct, "Fsm1::parse: expecting fsm struct");
                 return Err(err);
@@ -84,7 +82,10 @@ impl Parse for Fsm1 {
             let process_fn_ident = item_fn.sig.ident.clone();
 
             let new_ident = |ident: syn::Ident, suffix: &str| {
-                syn::Ident::new((ident.to_string() + suffix.to_owned().as_str()).as_str(), ident.span())
+                syn::Ident::new(
+                    (ident.to_string() + suffix.to_owned().as_str()).as_str(),
+                    ident.span(),
+                )
             };
             let enter_fn_ident = new_ident(process_fn_ident.clone(), "_enter");
             let exit_fn_ident = new_ident(process_fn_ident.clone(), "_exit");
@@ -135,10 +136,10 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
     let fsm_ident = fsm.fsm_ident;
     //println!("fsm1: fsm_ident={:#?}", fsm_ident);
 
-    let fsm_fields = fsm.fsm_fields; 
+    let fsm_fields = fsm.fsm_fields;
     //println!("fsm1: fsm_fields={:#?}", fsm_fields);
 
-    let fsm_fns = fsm.fsm_fns; 
+    let fsm_fns = fsm.fsm_fns;
     //println!("fsm1: fsm_fns={:#?}", fsm_fns);
 
     let _fsm_fn_map = fsm.fsm_fn_map;
@@ -151,16 +152,14 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
 
         let process_fn_ident = sfn.process_fn_ident;
         //println!("fsm1: process_fn_ident={}", process_fn_ident);
-        if process_fn_ident.to_string() == "initial" {
+        if process_fn_ident == "initial" {
             assert_eq!(fsm_initial_state_fns_handle, None);
             fsm_initial_state_fns_handle = Some(fsm_state_fns.len());
         }
 
-        let opt_fn_ident = |ident: Option<syn::Ident>| {
-            match ident {
-                Some(ident) => quote!(Some(#fsm_ident::#ident)),
-                None => quote!(None),
-            }
+        let opt_fn_ident = |ident: Option<syn::Ident>| match ident {
+            Some(ident) => quote!(Some(#fsm_ident::#ident)),
+            None => quote!(None),
         };
         let parent_fn = opt_fn_ident(sfn.parent_fn_ident);
         //println!("fsm1: parent_fn={}", parent_fn);
@@ -296,7 +295,6 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
 
     output.into()
 }
-
 
 struct Visitor;
 

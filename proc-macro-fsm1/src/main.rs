@@ -5,7 +5,7 @@ fsm1!(
         a_i32: i32,
     }
 
-    fn non_state_fn(& mut self) {
+    fn non_state_fn(&mut self) {
         self.a_i32 += 1;
         println!("MyFSM: non_state_fns_handle self.data={}", self.a_i32);
     }
@@ -15,7 +15,7 @@ fsm1!(
     }
 
     #[fsm1_state]
-    fn initial(& mut self) -> StateResult {
+    fn initial(&mut self) -> StateResult {
         self.non_state_fn();
         println!("MyFSM: initial self.a_i32={}", self.a_i32);
 
@@ -27,7 +27,7 @@ fsm1!(
     }
 
     #[fsm1_state]
-    fn do_work(& mut self) -> StateResult {
+    fn do_work(&mut self) -> StateResult {
         self.a_i32 += 1;
         println!("MyFSM: do_work self.a_i32={}", self.a_i32);
 
@@ -35,7 +35,7 @@ fsm1!(
     }
 
     #[fsm1_state]
-    fn done(& mut self) -> StateResult {
+    fn done(&mut self) -> StateResult {
         self.a_i32 += 1;
         println!("MyFSM: done self.a_i32={}", self.a_i32);
 
@@ -43,11 +43,13 @@ fsm1!(
     }
 );
 
-
 fn main() {
     // Verify new without type works
     let mut my_new_fsm = MyFsm::new();
-    println!("main: my_new_fsm={}", my_new_fsm.sm.state_fns[0].process as u64);
+    println!(
+        "main: my_new_fsm={}",
+        my_new_fsm.sm.state_fns[0].process as usize
+    );
     my_new_fsm.a_i32 = 321;
     assert_eq!(my_new_fsm.a_i32, 321);
 
@@ -72,7 +74,10 @@ fn main() {
 
     // Invoke initial
     my_fsm.dispatch();
-    println!("main: my_fsm.a_i32={} csc={}", my_fsm.a_i32, my_fsm.sm.current_state_changed);
+    println!(
+        "main: my_fsm.a_i32={} csc={}",
+        my_fsm.a_i32, my_fsm.sm.current_state_changed
+    );
     assert_eq!(my_fsm.sm.current_state_fns_handle as usize, 1); //MyFsm::do_work as usize);
     assert_eq!(my_fsm.sm.previous_state_fns_handle as usize, 0); //MyFsm::initial as usize);
     assert!(my_fsm.sm.current_state_changed);
@@ -88,7 +93,7 @@ fn main() {
     my_fsm.dispatch();
     println!("main: my_fsm.a_i32={}", my_fsm.a_i32);
     assert_eq!(my_fsm.sm.current_state_fns_handle as usize, 2); //MyFsm::done as usize);
-    assert_eq!(my_fsm.sm.previous_state_fns_handle as usize,  1); //MyFsm::do_work as usize);
+    assert_eq!(my_fsm.sm.previous_state_fns_handle as usize, 1); //MyFsm::do_work as usize);
     assert!(!my_fsm.sm.current_state_changed);
 
     // Invoke done again
@@ -98,7 +103,6 @@ fn main() {
     assert_eq!(my_fsm.sm.previous_state_fns_handle as usize, 1); //MyFsm::do_work as usize);
     assert!(!my_fsm.sm.current_state_changed);
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -110,7 +114,7 @@ mod tests {
             struct Test {}
 
             #[fsm1_state]
-            fn initial(& mut self) -> StateResult {
+            fn initial(&mut self) -> StateResult {
                 StateResult::Handled
             }
         );
@@ -127,12 +131,12 @@ mod tests {
             struct TestDispatch {}
 
             #[fsm1_state]
-            fn initial(& mut self) -> StateResult {
+            fn initial(&mut self) -> StateResult {
                 StateResult::TransitionTo(1usize) //TestDispatch::done)
             }
 
             #[fsm1_state]
-            fn done(& mut self) -> StateResult {
+            fn done(&mut self) -> StateResult {
                 StateResult::Handled
             }
         );
@@ -164,7 +168,7 @@ mod tests {
             struct Test {}
 
             #[fsm1_state]
-            fn initial(& mut self) -> StateResult {
+            fn initial(&mut self) -> StateResult {
                 StateResult::Handled
             }
         );
@@ -186,12 +190,12 @@ mod tests {
             struct Test {}
 
             #[fsm1_state]
-            fn initial(& mut self) -> StateResult {
+            fn initial(&mut self) -> StateResult {
                 StateResult::TransitionTo(1usize) //Test::done)
             }
 
             #[fsm1_state]
-            fn done(& mut self) -> StateResult {
+            fn done(&mut self) -> StateResult {
                 StateResult::Handled
             }
         );
@@ -220,13 +224,13 @@ mod tests {
             }
 
             #[fsm1_state]
-            fn initial(& mut self) -> StateResult {
+            fn initial(&mut self) -> StateResult {
                 self.initial_cnt += 1;
                 StateResult::TransitionTo(1usize) //Test::done)
             }
 
             #[fsm1_state]
-            fn done(& mut self) -> StateResult {
+            fn done(&mut self) -> StateResult {
                 self.done_cnt += 1;
                 StateResult::Handled
             }
@@ -275,14 +279,14 @@ mod tests {
             }
 
             #[fsm1_state]
-            fn initial(& mut self) -> StateResult {
+            fn initial(&mut self) -> StateResult {
                 println!("test_enter: initial");
                 self.initial_cnt += 1;
                 StateResult::TransitionTo(1usize) //Test::done)
             }
 
             #[fsm1_state]
-            fn done(& mut self) -> StateResult {
+            fn done(&mut self) -> StateResult {
                 println!("test_enter: done");
                 self.done_cnt += 1;
                 StateResult::Handled
@@ -332,7 +336,7 @@ mod tests {
             }
 
             #[fsm1_state]
-            fn initial(& mut self) -> StateResult {
+            fn initial(&mut self) -> StateResult {
                 self.initial_cnt += 1;
                 StateResult::TransitionTo(1usize) //Test::done)
             }
@@ -346,7 +350,7 @@ mod tests {
             }
 
             #[fsm1_state]
-            fn done(& mut self) -> StateResult {
+            fn done(&mut self) -> StateResult {
                 self.done_cnt += 1;
                 StateResult::Handled
             }
@@ -516,5 +520,4 @@ mod tests {
         assert_eq!(fsm.done_cnt, 2);
         assert_eq!(fsm.done_exit_cnt, 0);
     }
-
 }
