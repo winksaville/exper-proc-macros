@@ -78,15 +78,15 @@ impl Parse for Fsm1 {
             fns.push(a_fn.clone());
         }
 
-
         let mut state_fn_idents = Vec::<StateFnIdents>::new();
         for process_fn_idx in state_fn_idxs.clone() {
             let item_fn = &fns[process_fn_idx];
             let process_fn_ident = item_fn.sig.ident.clone();
+
             let new_ident = |ident: syn::Ident, suffix: &str| {
                 syn::Ident::new((ident.to_string() + suffix.to_owned().as_str()).as_str(), ident.span())
             };
-            let entry_fn_ident = new_ident(process_fn_ident.clone(), "_exit");
+            let entry_fn_ident = new_ident(process_fn_ident.clone(), "_entry");
             let exit_fn_ident = new_ident(process_fn_ident.clone(), "_exit");
 
             let entry_fn_ident_opt = if fn_map.get(entry_fn_ident.to_string().as_str()).is_some() {
@@ -245,6 +245,8 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
         }
 
         type StateFn = fn(&mut #fsm_ident, /* &Protocol1 */) -> StateResult;
+        type StateFnEntry = fn(&mut #fsm_ident, /* &Protocol1 */);
+        type StateFnExit = fn(&mut #fsm_ident, /* &Protocol1 */);
         type StateFnsHandle = usize;
 
         enum StateResult {
@@ -255,9 +257,9 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
 
         struct StateFns {
             parent: Option<StateFn>,
-            entry: Option<StateFn>,
+            entry: Option<StateFnEntry>,
             process: StateFn,
-            exit: Option<StateFn>,
+            exit: Option<StateFnExit>,
         }
 
         //#[derive(Debug)]

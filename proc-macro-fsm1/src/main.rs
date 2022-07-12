@@ -22,6 +22,10 @@ fsm1!(
         StateResult::TransitionTo(1) //Self::do_work)
     }
 
+    fn initial_exit(&mut self) {
+        println!("MyFSM: initial_exit self.a_i32={}", self.a_i32);
+    }
+
     #[fsm1_state]
     fn do_work(& mut self) -> StateResult {
         self.a_i32 += 1;
