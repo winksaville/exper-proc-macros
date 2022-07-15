@@ -1,4 +1,4 @@
-use proc_macro_fsm1::{fsm1, fsm1_state};
+use proc_macro_fsm1::{fsm1, fsm1_state, handled, not_handled, transition_to};
 
 fsm1!(
     struct MyFsm {
@@ -19,7 +19,7 @@ fsm1!(
         self.non_state_fn();
         println!("MyFSM: initial self.a_i32={}", self.a_i32);
 
-        StateResult::TransitionTo(1) //Self::do_work)
+        transition_to!(do_work)
     }
 
     fn initial_exit(&mut self) {
@@ -31,7 +31,7 @@ fsm1!(
         self.a_i32 += 1;
         println!("MyFSM: do_work self.a_i32={}", self.a_i32);
 
-        StateResult::TransitionTo(2) //Self::done)
+        transition_to!(done)
     }
 
     #[fsm1_state]
@@ -39,7 +39,15 @@ fsm1!(
         self.a_i32 += 1;
         println!("MyFSM: done self.a_i32={}", self.a_i32);
 
-        StateResult::Handled
+        handled!()
+    }
+
+    #[fsm1_state]
+    fn do_nothing_ret_not_handled(&mut self) -> StateResult {
+        self.a_i32 += 1;
+        println!("MyFSM: done self.a_i32={}", self.a_i32);
+
+        not_handled!()
     }
 );
 
