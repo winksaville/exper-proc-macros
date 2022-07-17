@@ -7,29 +7,34 @@ fsm1!(
 
     fn non_state_fn(&mut self) {
         self.a_i32 += 1;
-        println!("MyFSM: non_state_fns_handle self.data={}", self.a_i32);
-    }
-
-    fn initial_enter(&mut self) {
-        println!("MyFSM: initial_enter self.a_i32={}", self.a_i32);
+        println!("non_state_fn: self.data={}", self.a_i32);
     }
 
     #[fsm1_state]
+    fn initial_parent(&mut self) -> StateResult {
+        println!("{}: never executed", self.state_name());
+        handled!()
+    }
+
+    fn initial_enter(&mut self) {
+        println!("{}: enter self.a_i32={}", self.state_name(), self.a_i32);
+    }
+
+    #[fsm1_state(initial_parent)]
     fn initial(&mut self) -> StateResult {
         self.non_state_fn();
-        println!("MyFSM: initial self.a_i32={}", self.a_i32);
-
+        println!("{}: self.a_i32={}", self.state_name(), self.a_i32);
         transition_to!(do_work)
     }
 
     fn initial_exit(&mut self) {
-        println!("MyFSM: initial_exit self.a_i32={}", self.a_i32);
+        println!("{}: exit  self.a_i32={}", self.state_name(), self.a_i32);
     }
 
     #[fsm1_state]
     fn do_work(&mut self) -> StateResult {
         self.a_i32 += 1;
-        println!("MyFSM: do_work self.a_i32={}", self.a_i32);
+        println!("{}: self.a_i32={}", self.state_name(), self.a_i32);
 
         transition_to!(done)
     }
@@ -37,7 +42,7 @@ fsm1!(
     #[fsm1_state]
     fn done(&mut self) -> StateResult {
         self.a_i32 += 1;
-        println!("MyFSM: done self.a_i32={}", self.a_i32);
+        println!("{}: self.a_i32={}", self.state_name(), self.a_i32);
 
         handled!()
     }
@@ -45,36 +50,16 @@ fsm1!(
     #[fsm1_state]
     fn do_nothing_ret_not_handled(&mut self) -> StateResult {
         self.a_i32 += 1;
-        println!("MyFSM: done self.a_i32={}", self.a_i32);
+        println!("{}: self.a_i32={}", self.state_name(), self.a_i32);
 
         not_handled!()
     }
 );
 
 fn main() {
-    // Verify new without type works
-    let mut my_new_fsm = MyFsm::new();
-    println!(
-        "main: my_new_fsm={}",
-        my_new_fsm.sm.state_fns[0].process as usize
-    );
-    my_new_fsm.a_i32 = 321;
-    assert_eq!(my_new_fsm.a_i32, 321);
-
-    // Verify new with type works
-    let mut my_new_fsm: MyFsm = MyFsm::new();
-    my_new_fsm.a_i32 = 456;
-    assert_eq!(my_new_fsm.a_i32, 456);
-
-    // Verify default without type works
-    let mut _my_new_fsm = MyFsm::default();
-    my_new_fsm.a_i32 = 213;
-    assert_eq!(my_new_fsm.a_i32, 213);
-
-    // Verify default with type works
-    let mut my_fsm: MyFsm = Default::default();
-    assert_eq!(my_fsm.sm.current_state_fns_handle as usize, 0); //MyFsm::initial as usize);
-    assert_eq!(my_fsm.sm.previous_state_fns_handle as usize, 0); //MyFsm::initial as usize);
+    let mut my_fsm = MyFsm::new();
+    assert_eq!(my_fsm.sm.current_state_fns_hdl as usize, 1); //MyFsm::initial as usize);
+    assert_eq!(my_fsm.sm.previous_state_fns_hdl as usize, 1); //MyFsm::initial as usize);
     assert!(my_fsm.sm.current_state_changed);
 
     my_fsm.a_i32 = 123;
@@ -82,39 +67,36 @@ fn main() {
 
     // Invoke initial
     my_fsm.dispatch();
-    println!(
-        "main: my_fsm.a_i32={} csc={}",
-        my_fsm.a_i32, my_fsm.sm.current_state_changed
-    );
-    assert_eq!(my_fsm.sm.current_state_fns_handle as usize, 1); //MyFsm::do_work as usize);
-    assert_eq!(my_fsm.sm.previous_state_fns_handle as usize, 0); //MyFsm::initial as usize);
+    println!("main: my_fsm.a_i32={}", my_fsm.a_i32);
+    assert_eq!(my_fsm.sm.current_state_fns_hdl as usize, 2); //MyFsm::do_work as usize);
+    assert_eq!(my_fsm.sm.previous_state_fns_hdl as usize, 1); //MyFsm::initial as usize);
     assert!(my_fsm.sm.current_state_changed);
 
     // Invoke do_work
     my_fsm.dispatch();
     println!("main: my_fsm.a_i32={}", my_fsm.a_i32);
-    assert_eq!(my_fsm.sm.current_state_fns_handle as usize, 2); //MyFsm::done as usize);
-    assert_eq!(my_fsm.sm.previous_state_fns_handle as usize, 1); //MyFsm::do_work as usize);
+    assert_eq!(my_fsm.sm.current_state_fns_hdl as usize, 3); //MyFsm::done as usize);
+    assert_eq!(my_fsm.sm.previous_state_fns_hdl as usize, 2); //MyFsm::do_work as usize);
     assert!(my_fsm.sm.current_state_changed);
 
     // Invoke done
     my_fsm.dispatch();
     println!("main: my_fsm.a_i32={}", my_fsm.a_i32);
-    assert_eq!(my_fsm.sm.current_state_fns_handle as usize, 2); //MyFsm::done as usize);
-    assert_eq!(my_fsm.sm.previous_state_fns_handle as usize, 1); //MyFsm::do_work as usize);
+    assert_eq!(my_fsm.sm.current_state_fns_hdl as usize, 3); //MyFsm::done as usize);
+    assert_eq!(my_fsm.sm.previous_state_fns_hdl as usize, 2); //MyFsm::do_work as usize);
     assert!(!my_fsm.sm.current_state_changed);
 
     // Invoke done again
     my_fsm.dispatch();
     println!("main: my_fsm.a_i32={}", my_fsm.a_i32);
-    assert_eq!(my_fsm.sm.current_state_fns_handle as usize, 2); //MyFsm::done as usize);
-    assert_eq!(my_fsm.sm.previous_state_fns_handle as usize, 1); //MyFsm::do_work as usize);
+    assert_eq!(my_fsm.sm.current_state_fns_hdl as usize, 3); //MyFsm::done as usize);
+    assert_eq!(my_fsm.sm.previous_state_fns_hdl as usize, 2); //MyFsm::do_work as usize);
     assert!(!my_fsm.sm.current_state_changed);
 }
 
 #[cfg(test)]
 mod tests {
-    use proc_macro_fsm1::{fsm1, fsm1_state};
+    use proc_macro_fsm1::{fsm1, fsm1_state, handled, not_handled, transition_to};
 
     #[test]
     fn test_initialization_via_default() {
@@ -128,8 +110,8 @@ mod tests {
         );
 
         let fsm: Test = Default::default();
-        assert_eq!(fsm.sm.current_state_fns_handle as usize, 0); //Test::initial as usize);
-        assert_eq!(fsm.sm.previous_state_fns_handle as usize, 0); //Test::initial as usize);
+        assert_eq!(fsm.sm.current_state_fns_hdl as usize, 0); //Test::initial as usize);
+        assert_eq!(fsm.sm.previous_state_fns_hdl as usize, 0); //Test::initial as usize);
         assert!(fsm.sm.current_state_changed);
     }
 
@@ -150,23 +132,23 @@ mod tests {
         );
 
         let mut fsm = TestDispatch::new();
-        assert_eq!(fsm.sm.current_state_fns_handle as usize, 0); //TestDispatch::initial as usize);
-        assert_eq!(fsm.sm.previous_state_fns_handle as usize, 0); //TestDispatch::initial as usize);
+        assert_eq!(fsm.sm.current_state_fns_hdl as usize, 0); //TestDispatch::initial as usize);
+        assert_eq!(fsm.sm.previous_state_fns_hdl as usize, 0); //TestDispatch::initial as usize);
         assert!(fsm.sm.current_state_changed);
 
         fsm.dispatch();
-        assert_eq!(fsm.sm.current_state_fns_handle as usize, 1); //TestDispatch::done as usize);
-        assert_eq!(fsm.sm.previous_state_fns_handle as usize, 0); //TestDispatch::initial as usize);
+        assert_eq!(fsm.sm.current_state_fns_hdl as usize, 1); //TestDispatch::done as usize);
+        assert_eq!(fsm.sm.previous_state_fns_hdl as usize, 0); //TestDispatch::initial as usize);
         assert!(fsm.sm.current_state_changed);
 
         fsm.dispatch();
-        assert_eq!(fsm.sm.current_state_fns_handle as usize, 1); //TestDispatch::done as usize);
-        assert_eq!(fsm.sm.previous_state_fns_handle as usize, 0); //TestDispatch::initial as usize);
+        assert_eq!(fsm.sm.current_state_fns_hdl as usize, 1); //TestDispatch::done as usize);
+        assert_eq!(fsm.sm.previous_state_fns_hdl as usize, 0); //TestDispatch::initial as usize);
         assert!(!fsm.sm.current_state_changed);
 
         fsm.dispatch();
-        assert_eq!(fsm.sm.current_state_fns_handle as usize, 1); //TestDispatch::done as usize);
-        assert_eq!(fsm.sm.previous_state_fns_handle as usize, 0); //TestDispatch::initial as usize);
+        assert_eq!(fsm.sm.current_state_fns_hdl as usize, 1); //TestDispatch::done as usize);
+        assert_eq!(fsm.sm.previous_state_fns_hdl as usize, 0); //TestDispatch::initial as usize);
         assert!(!fsm.sm.current_state_changed);
     }
 
@@ -182,13 +164,13 @@ mod tests {
         );
 
         let mut fsm = Test::new();
-        assert_eq!(fsm.sm.current_state_fns_handle as usize, 0); //Test::initial as usize);
-        assert_eq!(fsm.sm.previous_state_fns_handle as usize, 0); //Test::initial as usize);
+        assert_eq!(fsm.sm.current_state_fns_hdl as usize, 0); //Test::initial as usize);
+        assert_eq!(fsm.sm.previous_state_fns_hdl as usize, 0); //Test::initial as usize);
         assert!(fsm.sm.current_state_changed);
 
         fsm.dispatch();
-        assert_eq!(fsm.sm.current_state_fns_handle as usize, 0); //Test::initial as usize);
-        assert_eq!(fsm.sm.previous_state_fns_handle as usize, 0); //Test::initial as usize);
+        assert_eq!(fsm.sm.current_state_fns_hdl as usize, 0); //Test::initial as usize);
+        assert_eq!(fsm.sm.previous_state_fns_hdl as usize, 0); //Test::initial as usize);
         assert!(!fsm.sm.current_state_changed);
     }
 
@@ -209,13 +191,13 @@ mod tests {
         );
 
         let mut fsm = Test::new();
-        assert_eq!(fsm.sm.current_state_fns_handle as usize, 0); //Test::initial as usize);
-        assert_eq!(fsm.sm.previous_state_fns_handle as usize, 0); //Test::initial as usize);
+        assert_eq!(fsm.sm.current_state_fns_hdl as usize, 0); //Test::initial as usize);
+        assert_eq!(fsm.sm.previous_state_fns_hdl as usize, 0); //Test::initial as usize);
         assert!(fsm.sm.current_state_changed);
 
         fsm.dispatch();
-        assert_eq!(fsm.sm.current_state_fns_handle as usize, 1); //Test::done as usize);
-        assert_eq!(fsm.sm.previous_state_fns_handle as usize, 0); //Test::initial as usize);
+        assert_eq!(fsm.sm.current_state_fns_hdl as usize, 1); //Test::done as usize);
+        assert_eq!(fsm.sm.previous_state_fns_hdl as usize, 0); //Test::initial as usize);
         assert!(fsm.sm.current_state_changed);
     }
 
@@ -527,5 +509,330 @@ mod tests {
         assert_eq!(fsm.done_enter_cnt, 1);
         assert_eq!(fsm.done_cnt, 2);
         assert_eq!(fsm.done_exit_cnt, 0);
+    }
+
+    #[test]
+    fn test_parent() {
+        fsm1!(
+            struct Test {
+                parent_enter_cnt: usize,
+                parent_cnt: usize,
+                parent_exit_cnt: usize,
+                initial_enter_cnt: usize,
+                initial_cnt: usize,
+                initial_exit_cnt: usize,
+            }
+
+            #[fsm1_state]
+            fn parent(&mut self) -> StateResult {
+                self.parent_cnt += 1;
+                handled!()
+            }
+
+            #[fsm1_state(parent)]
+            fn initial(&mut self) -> StateResult {
+                self.initial_cnt += 1;
+                not_handled!()
+            }
+        );
+
+        let mut hsm = Test::new();
+        assert_eq!(hsm.parent_enter_cnt, 0);
+        assert_eq!(hsm.parent_cnt, 0);
+        assert_eq!(hsm.parent_exit_cnt, 0);
+        assert_eq!(hsm.initial_enter_cnt, 0);
+        assert_eq!(hsm.initial_cnt, 0);
+        assert_eq!(hsm.initial_exit_cnt, 0);
+
+        hsm.dispatch();
+        assert_eq!(hsm.parent_enter_cnt, 0);
+        assert_eq!(hsm.parent_cnt, 1);
+        assert_eq!(hsm.parent_exit_cnt, 0);
+        assert_eq!(hsm.initial_enter_cnt, 0);
+        assert_eq!(hsm.initial_cnt, 1);
+        assert_eq!(hsm.initial_exit_cnt, 0);
+    }
+
+    #[test]
+    fn test_parent_with_enter_exit() {
+        fsm1!(
+            struct Test {
+                parent_enter_cnt: usize,
+                parent_cnt: usize,
+                parent_exit_cnt: usize,
+                initial_enter_cnt: usize,
+                initial_cnt: usize,
+                initial_exit_cnt: usize,
+            }
+
+            fn parent_enter(&mut self) {
+                self.parent_enter_cnt += 1;
+            }
+
+            #[fsm1_state]
+            fn parent(&mut self) -> StateResult {
+                self.parent_cnt += 1;
+                handled!()
+            }
+
+            fn parent_exit(&mut self) {
+                self.parent_exit_cnt += 1;
+            }
+
+            #[fsm1_state(parent)]
+            fn initial(&mut self) -> StateResult {
+                self.initial_cnt += 1;
+                not_handled!()
+            }
+        );
+
+        let mut hsm = Test::new();
+        assert_eq!(hsm.parent_enter_cnt, 0);
+        assert_eq!(hsm.parent_cnt, 0);
+        assert_eq!(hsm.parent_exit_cnt, 0);
+        assert_eq!(hsm.initial_enter_cnt, 0);
+        assert_eq!(hsm.initial_cnt, 0);
+        assert_eq!(hsm.initial_exit_cnt, 0);
+
+        hsm.dispatch();
+        assert_eq!(hsm.parent_enter_cnt, 1);
+        assert_eq!(hsm.parent_cnt, 1);
+        assert_eq!(hsm.parent_exit_cnt, 0);
+        assert_eq!(hsm.initial_enter_cnt, 0);
+        assert_eq!(hsm.initial_cnt, 1);
+        assert_eq!(hsm.initial_exit_cnt, 0);
+    }
+
+    #[test]
+    fn test_one_tree() {
+        fsm1!(
+            struct Test {
+                parent_enter_cnt: usize,
+                parent_cnt: usize,
+                parent_exit_cnt: usize,
+                initial_enter_cnt: usize,
+                initial_cnt: usize,
+                initial_exit_cnt: usize,
+                do_work_enter_cnt: usize,
+                do_work_cnt: usize,
+                do_work_exit_cnt: usize,
+                done_enter_cnt: usize,
+                done_cnt: usize,
+                done_exit_cnt: usize,
+            }
+
+            fn parent_enter(&mut self) {
+                self.parent_enter_cnt += 1;
+            }
+
+            #[fsm1_state]
+            fn parent(&mut self) -> StateResult {
+                self.parent_cnt += 1;
+                handled!()
+            }
+
+            fn parent_exit(&mut self) {
+                self.parent_exit_cnt += 1;
+            }
+
+            fn initial_enter(&mut self) {
+                self.initial_enter_cnt += 1;
+            }
+
+            #[fsm1_state(parent)]
+            fn initial(&mut self) -> StateResult {
+                self.initial_cnt += 1;
+                match self.initial_cnt {
+                    1 => not_handled!(),
+                    2 => handled!(),
+                    _ => transition_to!(do_work),
+                }
+            }
+
+            fn initial_exit(&mut self) {
+                self.initial_exit_cnt += 1;
+            }
+
+            fn do_work_enter(&mut self) {
+                self.do_work_enter_cnt += 1;
+            }
+
+            #[fsm1_state(parent)]
+            fn do_work(&mut self) -> StateResult {
+                self.do_work_cnt += 1;
+                match self.do_work_cnt {
+                    1 => handled!(),
+                    2 => not_handled!(),
+                    _ => transition_to!(done),
+                }
+            }
+
+            fn do_work_exit(&mut self) {
+                self.do_work_exit_cnt += 1;
+            }
+
+            fn done_enter(&mut self) {
+                self.done_enter_cnt += 1;
+            }
+
+            #[fsm1_state(parent)]
+            fn done(&mut self) -> StateResult {
+                self.done_cnt += 1;
+                transition_to!(parent)
+            }
+
+            fn done_exit(&mut self) {
+                self.done_exit_cnt += 1;
+            }
+        );
+
+        let mut hsm = Test::new();
+        assert_eq!(hsm.parent_enter_cnt, 0);
+        assert_eq!(hsm.parent_cnt, 0);
+        assert_eq!(hsm.parent_exit_cnt, 0);
+        assert_eq!(hsm.initial_enter_cnt, 0);
+        assert_eq!(hsm.initial_cnt, 0);
+        assert_eq!(hsm.initial_exit_cnt, 0);
+        assert_eq!(hsm.do_work_enter_cnt, 0);
+        assert_eq!(hsm.do_work_cnt, 0);
+        assert_eq!(hsm.do_work_exit_cnt, 0);
+        assert_eq!(hsm.done_enter_cnt, 0);
+        assert_eq!(hsm.done_cnt, 0);
+        assert_eq!(hsm.done_exit_cnt, 0);
+
+        // Into initial which returned not_handled!()
+        hsm.dispatch();
+        assert_eq!(hsm.parent_enter_cnt, 1);
+        assert_eq!(hsm.parent_cnt, 1);
+        assert_eq!(hsm.parent_exit_cnt, 0);
+        assert_eq!(hsm.initial_enter_cnt, 1);
+        assert_eq!(hsm.initial_cnt, 1);
+        assert_eq!(hsm.initial_exit_cnt, 0);
+        assert_eq!(hsm.do_work_enter_cnt, 0);
+        assert_eq!(hsm.do_work_cnt, 0);
+        assert_eq!(hsm.do_work_exit_cnt, 0);
+        assert_eq!(hsm.done_enter_cnt, 0);
+        assert_eq!(hsm.done_cnt, 0);
+        assert_eq!(hsm.done_exit_cnt, 0);
+
+        // In initial which returned handled!()
+        hsm.dispatch();
+        assert_eq!(hsm.parent_enter_cnt, 1);
+        assert_eq!(hsm.parent_cnt, 1);
+        assert_eq!(hsm.parent_exit_cnt, 0);
+        assert_eq!(hsm.initial_enter_cnt, 1);
+        assert_eq!(hsm.initial_cnt, 2);
+        assert_eq!(hsm.initial_exit_cnt, 0);
+        assert_eq!(hsm.do_work_enter_cnt, 0);
+        assert_eq!(hsm.do_work_cnt, 0);
+        assert_eq!(hsm.do_work_exit_cnt, 0);
+        assert_eq!(hsm.done_enter_cnt, 0);
+        assert_eq!(hsm.done_cnt, 0);
+        assert_eq!(hsm.done_exit_cnt, 0);
+
+        // In initial which returned transition_to!(do_work)
+        hsm.dispatch();
+        assert_eq!(hsm.parent_enter_cnt, 1);
+        assert_eq!(hsm.parent_cnt, 1);
+        assert_eq!(hsm.parent_exit_cnt, 0);
+        assert_eq!(hsm.initial_enter_cnt, 1);
+        assert_eq!(hsm.initial_cnt, 3);
+        assert_eq!(hsm.initial_exit_cnt, 1);
+        assert_eq!(hsm.do_work_enter_cnt, 0);
+        assert_eq!(hsm.do_work_cnt, 0);
+        assert_eq!(hsm.do_work_exit_cnt, 0);
+        assert_eq!(hsm.done_enter_cnt, 0);
+        assert_eq!(hsm.done_cnt, 0);
+        assert_eq!(hsm.done_exit_cnt, 0);
+
+        // Into do_work returned handled!()
+        hsm.dispatch();
+        assert_eq!(hsm.parent_enter_cnt, 1);
+        assert_eq!(hsm.parent_cnt, 1);
+        assert_eq!(hsm.parent_exit_cnt, 0);
+        assert_eq!(hsm.initial_enter_cnt, 1);
+        assert_eq!(hsm.initial_cnt, 3);
+        assert_eq!(hsm.initial_exit_cnt, 1);
+        assert_eq!(hsm.do_work_enter_cnt, 1);
+        assert_eq!(hsm.do_work_cnt, 1);
+        assert_eq!(hsm.do_work_exit_cnt, 0);
+        assert_eq!(hsm.done_enter_cnt, 0);
+        assert_eq!(hsm.done_cnt, 0);
+        assert_eq!(hsm.done_exit_cnt, 0);
+
+        // In do_work returned not_handled!()
+        hsm.dispatch();
+        assert_eq!(hsm.parent_enter_cnt, 1);
+        assert_eq!(hsm.parent_cnt, 2);
+        assert_eq!(hsm.parent_exit_cnt, 0);
+        assert_eq!(hsm.initial_enter_cnt, 1);
+        assert_eq!(hsm.initial_cnt, 3);
+        assert_eq!(hsm.initial_exit_cnt, 1);
+        assert_eq!(hsm.do_work_enter_cnt, 1);
+        assert_eq!(hsm.do_work_cnt, 2);
+        assert_eq!(hsm.do_work_exit_cnt, 0);
+        assert_eq!(hsm.done_enter_cnt, 0);
+        assert_eq!(hsm.done_cnt, 0);
+        assert_eq!(hsm.done_exit_cnt, 0);
+
+        // In do_work returned transition_to!(done)
+        hsm.dispatch();
+        assert_eq!(hsm.parent_enter_cnt, 1);
+        assert_eq!(hsm.parent_cnt, 2);
+        assert_eq!(hsm.parent_exit_cnt, 0);
+        assert_eq!(hsm.initial_enter_cnt, 1);
+        assert_eq!(hsm.initial_cnt, 3);
+        assert_eq!(hsm.initial_exit_cnt, 1);
+        assert_eq!(hsm.do_work_enter_cnt, 1);
+        assert_eq!(hsm.do_work_cnt, 3);
+        assert_eq!(hsm.do_work_exit_cnt, 1);
+        assert_eq!(hsm.done_enter_cnt, 0);
+        assert_eq!(hsm.done_cnt, 0);
+        assert_eq!(hsm.done_exit_cnt, 0);
+
+        // Into done always returns transition_to!(parent)
+        hsm.dispatch();
+        assert_eq!(hsm.parent_enter_cnt, 1);
+        assert_eq!(hsm.parent_cnt, 2);
+        assert_eq!(hsm.parent_exit_cnt, 1);
+        assert_eq!(hsm.initial_enter_cnt, 1);
+        assert_eq!(hsm.initial_cnt, 3);
+        assert_eq!(hsm.initial_exit_cnt, 1);
+        assert_eq!(hsm.do_work_enter_cnt, 1);
+        assert_eq!(hsm.do_work_cnt, 3);
+        assert_eq!(hsm.do_work_exit_cnt, 1);
+        assert_eq!(hsm.done_enter_cnt, 1);
+        assert_eq!(hsm.done_cnt, 1);
+        assert_eq!(hsm.done_exit_cnt, 1);
+
+        // Into parent always returns handled!()
+        hsm.dispatch();
+        assert_eq!(hsm.parent_enter_cnt, 2);
+        assert_eq!(hsm.parent_cnt, 3);
+        assert_eq!(hsm.parent_exit_cnt, 1);
+        assert_eq!(hsm.initial_enter_cnt, 1);
+        assert_eq!(hsm.initial_cnt, 3);
+        assert_eq!(hsm.initial_exit_cnt, 1);
+        assert_eq!(hsm.do_work_enter_cnt, 1);
+        assert_eq!(hsm.do_work_cnt, 3);
+        assert_eq!(hsm.do_work_exit_cnt, 1);
+        assert_eq!(hsm.done_enter_cnt, 1);
+        assert_eq!(hsm.done_cnt, 1);
+        assert_eq!(hsm.done_exit_cnt, 1);
+
+        // Into parent always returns handled!()
+        hsm.dispatch();
+        assert_eq!(hsm.parent_enter_cnt, 2);
+        assert_eq!(hsm.parent_cnt, 4);
+        assert_eq!(hsm.parent_exit_cnt, 1);
+        assert_eq!(hsm.initial_enter_cnt, 1);
+        assert_eq!(hsm.initial_cnt, 3);
+        assert_eq!(hsm.initial_exit_cnt, 1);
+        assert_eq!(hsm.do_work_enter_cnt, 1);
+        assert_eq!(hsm.do_work_cnt, 3);
+        assert_eq!(hsm.do_work_exit_cnt, 1);
+        assert_eq!(hsm.done_enter_cnt, 1);
+        assert_eq!(hsm.done_cnt, 1);
+        assert_eq!(hsm.done_exit_cnt, 1);
     }
 }
