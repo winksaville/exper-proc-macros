@@ -12,7 +12,7 @@ members = [
     "proc-macro-verbatim",
     "proc-macro-expr-binary",
     "proc-macro-nesting",
-    "proc-macro-fsm1",
+    "proc-macro-hsm1",
 ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -23,4 +23,4 @@ proc-macro-derive-using-parse = { path = "proc-macro-derive-using-parse" }
 proc-macro-verbatim = { path = "proc-macro-verbatim" }
 proc-macro-expr-binary = { path = "proc-macro-expr-binary" }
 proc-macro-nesting = { path = "proc-macro-nesting" }
-proc-macro-fsm1 = { path = "proc-macro-fsm1" }
+proc-macro-hsm1 = { path = "proc-macro-hsm1" }

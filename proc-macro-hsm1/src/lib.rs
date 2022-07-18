@@ -1,4 +1,5 @@
 #![feature(core_intrinsics)]
+///! Hierarchical State Machine proc_macro
 use std::collections::HashMap;
 
 use proc_macro2::TokenStream as TokenStream2;
@@ -10,20 +11,20 @@ use syn::visit_mut::{self, VisitMut};
 use syn::{parse_macro_input, Macro, Result};
 
 #[proc_macro_attribute]
-pub fn fsm1_state(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    //println!("proc_macro_attribute fsm1_state: attr={:#?}", attr);
-    //println!("proc_macro_attribute fsm1_state: item={:#?}", item);
+pub fn hsm1_state(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    //println!("proc_macro_attribute hsm1_state: attr={:#?}", attr);
+    //println!("proc_macro_attribute hsm1_state: item={:#?}", item);
     item
 }
 
 #[derive(Debug)]
-struct Fsm1 {
-    fsm_ident: syn::Ident,
-    fsm_fields: Vec<syn::Field>,
-    fsm_fns: Vec<syn::ItemFn>,
+struct Hsm1 {
+    hsm_ident: syn::Ident,
+    hsm_fields: Vec<syn::Field>,
+    hsm_fns: Vec<syn::ItemFn>,
     #[allow(unused)]
-    fsm_state_fn_ident_map: HashMap<String, usize>,
-    fsm_state_fn_idents: Vec<StateFnIdents>,
+    hsm_state_fn_ident_map: HashMap<String, usize>,
+    hsm_state_fn_idents: Vec<StateFnIdents>,
 }
 
 #[derive(Debug)]
@@ -34,23 +35,23 @@ struct StateFnIdents {
     exit_fn_ident: Option<syn::Ident>,
 }
 
-impl Parse for Fsm1 {
+impl Parse for Hsm1 {
     fn parse(input: ParseStream) -> Result<Self> {
-        //println!("Fsm1::parse:+");
-        //println!("Fsm1::parse: input={:#?}", input);
+        //println!("hsm1::parse:+");
+        //println!("hsm1::parse: input={:#?}", input);
 
         let item_struct = input.parse::<syn::ItemStruct>()?;
-        //println!("Fsm1::parse: item_struct={:#?}", item_struct);
+        //println!("hsm1::parse: item_struct={:#?}", item_struct);
 
-        // Parse all of the FSM1 data fields
+        // Parse all of the hsm1 data fields
         let fields: Vec<syn::Field> = match item_struct.fields {
             syn::Fields::Named(fields_named) => fields_named.named.iter().cloned().collect(),
             _ => {
-                let err = syn::Error::new_spanned(item_struct, "Fsm1::parse: expecting fsm struct");
+                let err = syn::Error::new_spanned(item_struct, "hsm1::parse: expecting hsm struct");
                 return Err(err);
             }
         };
-        //println!("Fsm1::parse: fields={:#?}", fields);
+        //println!("hsm1::parse: fields={:#?}", fields);
 
         // The only thing that should remain are functions
         struct StateFnInfo {
@@ -61,26 +62,26 @@ impl Parse for Fsm1 {
         let mut fns = Vec::<syn::ItemFn>::new();
         let mut fn_map = HashMap::<String, usize>::new();
         while let Ok(a_fn) = input.parse::<syn::ItemFn>() {
-            //println!("Fsm1::parse: tol ItemFn a_fn={:#?}", a_fn);
+            //println!("hsm1::parse: tol ItemFn a_fn={:#?}", a_fn);
 
-            // Look at the attributes and check for "fsm1_state"
+            // Look at the attributes and check for "hsm1_state"
             for a in a_fn.attrs.iter() {
-                //println!("Fsm1::parse: function attributes: {:#?}", a);
+                //println!("hsm1::parse: function attributes: {:#?}", a);
 
                 if let Some(ident) = a.path.get_ident() {
-                    if ident == "fsm1_state" {
+                    if ident == "hsm1_state" {
                         // TODO: There is probably a better way to implement
                         // optional parameters to proc_macro_attribute. The problem
                         // is if there is no arguments "a.parse_args" returns err, but
-                        // in Fsm1Args::parse I also handle the notion of no args in
+                        // in hsm1Args::parse I also handle the notion of no args in
                         // that it also returns None thus this feels over complicated.
                         #[derive(Debug)]
-                        struct Fsm1Args {
+                        struct Hsm1Args {
                             #[allow(unused)]
                             arg_ident: Option<syn::Ident>,
                         }
 
-                        impl Parse for Fsm1Args {
+                        impl Parse for Hsm1Args {
                             fn parse(input: ParseStream) -> Result<Self> {
                                 // There should only be one ident
                                 let name = if let Ok(id) = input.parse() {
@@ -88,20 +89,20 @@ impl Parse for Fsm1 {
                                 } else {
                                     None
                                 };
-                                Ok(Fsm1Args { arg_ident: name })
+                                Ok(Hsm1Args { arg_ident: name })
                             }
                         }
 
                         // Save the index of this function in state_fn_hdls
                         state_fn_info.push(StateFnInfo {
                             idx: fns.len(),
-                            parent_ident: if let Ok(fa) = a.parse_args::<Fsm1Args>() {
+                            parent_ident: if let Ok(fa) = a.parse_args::<Hsm1Args>() {
                                 fa.arg_ident
                             } else {
                                 None
                             },
                         });
-                        //println!("Fsm1::parse: {} has a fsm1_state attribute, hdl={}", a_fn.sig.ident.to_string(), state_fn_hdls.last().unwrap());
+                        //println!("hsm1::parse: {} has a hsm1_state attribute, hdl={}", a_fn.sig.ident.to_string(), state_fn_hdls.last().unwrap());
                         break; // Never push more than one, although there should only be one
                     }
                 }
@@ -148,133 +149,207 @@ impl Parse for Fsm1 {
             });
         }
 
-        //println!("Fsm1::parse:-");
-        Ok(Fsm1 {
-            fsm_ident: item_struct.ident.clone(),
-            fsm_fields: fields,
-            fsm_fns: fns,
-            fsm_state_fn_ident_map: state_fn_idents_map,
-            fsm_state_fn_idents: state_fn_idents,
+        //println!("hsm1::parse:-");
+        Ok(Hsm1 {
+            hsm_ident: item_struct.ident.clone(),
+            hsm_fields: fields,
+            hsm_fns: fns,
+            hsm_state_fn_ident_map: state_fn_idents_map,
+            hsm_state_fn_idents: state_fn_idents,
         })
     }
 }
 
+/// hsm1 proc_macro
+///
+/// # Examples
+///
+/// The simplest HSM is just Finite State Machine (FSM) with a single
+/// state and no hierarchical structure.
+///
+/// ```
+/// use proc_macro_hsm1::{hsm1, hsm1_state, handled};
+///
+/// hsm1!(
+///     #[derive(Debug)]
+///     struct MyFsm {
+///         count: u64,
+///     }
+///
+///     #[hsm1_state]
+///     fn initial(&mut self) -> StateResult {
+///         // Mutate the state
+///         self.count += 1;
+///
+///         // Return the desired StateResult
+///         handled!()
+///     }
+/// );
+///
+/// fn main() {
+///     let mut fsm = MyFsm::new();
+///
+///     fsm.dispatch();
+///     println!("fsm: fsm.count={}", fsm.count);
+///     assert_eq!(fsm.count, 1);
+/// }
+/// ```
+///
+/// Here is the simplest HSM with two states
+/// ```
+/// use proc_macro_hsm1::{hsm1, hsm1_state, handled, not_handled};
+///
+/// hsm1!(
+///     #[derive(Debug)]
+///     struct MyHsm {
+///         base_count: u64,
+///         initial_count: u64,
+///     }
+///
+///     #[hsm1_state]
+///     fn base(&mut self) -> StateResult {
+///         // Mutate the state
+///         self.base_count += 1;
+///
+///         // Return the desired StateResult
+///         handled!()
+///     }
+///
+///     #[hsm1_state(base)]
+///     fn initial(&mut self) -> StateResult {
+///         // Mutate the state
+///         self.initial_count += 1;
+///
+///         // Let the parent state handle all invocations
+///         not_handled!()
+///     }
+/// );
+///
+/// fn main() {
+///     let mut hsm = MyHsm::new();
+///
+///     hsm.dispatch();
+///     println!("hsm: hsm base_count={} intial_count={}", hsm.base_count, hsm.initial_count);
+///     assert_eq!(hsm.base_count, 1);
+///     assert_eq!(hsm.initial_count, 1);
+/// }
+/// ```
 #[proc_macro]
-pub fn fsm1(input: TokenStream) -> TokenStream {
-    //println!("fsm1:+");
+pub fn hsm1(input: TokenStream) -> TokenStream {
+    //println!("hsm1:+");
 
-    //println!("fsm1:+ input={:#?}", &input);
+    //println!("hsm1:+ input={:#?}", &input);
     let in_ts = input;
 
-    let fsm = parse_macro_input!(in_ts as Fsm1);
-    //println!("fsm1: fsm={:#?}", fsm);
+    let hsm = parse_macro_input!(in_ts as Hsm1);
+    //println!("hsm1: hsm={:#?}", hsm);
 
-    let fsm_ident = fsm.fsm_ident;
-    //println!("fsm1: fsm_ident={:#?}", fsm_ident);
+    let hsm_ident = hsm.hsm_ident;
+    //println!("hsm1: hsm_ident={:#?}", hsm_ident);
 
-    let fsm_fields = fsm.fsm_fields;
-    //println!("fsm1: fsm_fields={:#?}", fsm_fields);
+    let hsm_fields = hsm.hsm_fields;
+    //println!("hsm1: hsm_fields={:#?}", hsm_fields);
 
-    let fsm_fns = fsm.fsm_fns;
-    //println!("fsm1: fsm_fns={:#?}", fsm_fns);
+    let hsm_fns = hsm.hsm_fns;
+    //println!("hsm1: hsm_fns={:#?}", hsm_fns);
 
-    let fsm_state_fn_ident_map = fsm.fsm_state_fn_ident_map;
-    //println!("fsm1: fsm_state_fn_ident_map={:?}", _fsm_state_fn_ident_map);
+    let hsm_state_fn_ident_map = hsm.hsm_state_fn_ident_map;
+    //println!("hsm1: hsm_state_fn_ident_map={:?}", _hsm_state_fn_ident_map);
 
-    let fsm_state_fn_idents = fsm.fsm_state_fn_idents;
-    let mut fsm_state_fns = Vec::<syn::ExprStruct>::new();
-    let mut fsm_initial_state_fns_hdl: Option<usize> = None;
-    for sfn in &fsm_state_fn_idents {
-        //println!("fsm1: sf={:#?}", sfn);
+    let hsm_state_fn_idents = hsm.hsm_state_fn_idents;
+    let mut hsm_state_fns = Vec::<syn::ExprStruct>::new();
+    let mut hsm_initial_state_fns_hdl: Option<usize> = None;
+    for sfn in &hsm_state_fn_idents {
+        //println!("hsm1: sf={:#?}", sfn);
 
         let process_fn_ident = sfn.process_fn_ident.clone();
-        //println!("fsm1: process_fn_ident={}", process_fn_ident);
+        //println!("hsm1: process_fn_ident={}", process_fn_ident);
         if process_fn_ident == "initial" {
-            assert_eq!(fsm_initial_state_fns_hdl, None);
-            fsm_initial_state_fns_hdl = Some(fsm_state_fns.len());
+            assert_eq!(hsm_initial_state_fns_hdl, None);
+            hsm_initial_state_fns_hdl = Some(hsm_state_fns.len());
         }
 
         let opt_fn_ident = |ident: Option<syn::Ident>| match ident {
-            Some(ident) => quote!(Some(#fsm_ident::#ident)),
+            Some(ident) => quote!(Some(#hsm_ident::#ident)),
             None => quote!(None),
         };
         let parent_hdl: TokenStream2 = if let Some(parent_ident) = &sfn.parent_fn_ident {
             let parent = parent_ident.to_string();
-            if let Some(hdl) = fsm_state_fn_ident_map.get(&parent) {
+            if let Some(hdl) = hsm_state_fn_ident_map.get(&parent) {
                 quote!(Some(#hdl))
             } else {
                 // TODO: Improve error handling
                 panic!(
                     "{}::{} is not defined and cannot be parent of {}",
-                    parent, fsm_ident, process_fn_ident
+                    parent, hsm_ident, process_fn_ident
                 );
             }
         } else {
             quote!(None)
         };
-        //println!("fsm1: parent_fn={}", parent_fn);
+        //println!("hsm1: parent_fn={}", parent_fn);
         let enter_fn = opt_fn_ident(sfn.enter_fn_ident.clone());
-        //println!("fsm1: enter_fn={}", enter_fn);
+        //println!("hsm1: enter_fn={}", enter_fn);
         let exit_fn = opt_fn_ident(sfn.exit_fn_ident.clone());
-        //println!("fsm1: exit_fn={}", exit_fn);
+        //println!("hsm1: exit_fn={}", exit_fn);
 
         let ts: TokenStream2 = quote!(
             StateFns {
                 name: stringify!(#process_fn_ident).to_owned(),
                 parent: #parent_hdl,
                 enter: #enter_fn,
-                process: #fsm_ident::#process_fn_ident,
+                process: #hsm_ident::#process_fn_ident,
                 exit: #exit_fn,
                 active: false,
             }
         );
         let sf_es = syn::parse2::<syn::ExprStruct>(ts);
         if let Ok(es) = sf_es {
-            fsm_state_fns.push(es);
+            hsm_state_fns.push(es);
         }
     }
-    //println!("fsm1: fsm_state_fns:\n{:#?}", fsm_state_fns);
+    //println!("hsm1: hsm_state_fns:\n{:#?}", hsm_state_fns);
 
-    let fsm_state_fns_len = fsm_state_fns.len();
-    let initial_state_hdl = if let Some(hdl) = fsm_initial_state_fns_hdl {
+    let hsm_state_fns_len = hsm_state_fns.len();
+    let initial_state_hdl = if let Some(hdl) = hsm_initial_state_fns_hdl {
         hdl
     } else {
         // TODO: Better error handling
         panic!("No initial state");
     };
-    //println!("fsm1: fsm_state_fns_len: {} initial_state_hdl={}", fsm_state_fns_len, initial_state_hdl);
+    //println!("hsm1: hsm_state_fns_len: {} initial_state_hdl={}", hsm_state_fns_len, initial_state_hdl);
 
     let mut visitor = Visitor {
-        fsm_ident: fsm_ident.clone(),
-        fsm_state_fn_ident_map,
+        hsm_ident: hsm_ident.clone(),
+        hsm_state_fn_ident_map,
     };
 
     let mut converted_fns = Vec::<syn::ItemFn>::new();
-    for a_fn in fsm_fns.iter() {
-        //println!("fsm1: visiting a_fn={:?}", a_fn.sig.ident);
+    for a_fn in hsm_fns.iter() {
+        //println!("hsm1: visiting a_fn={:?}", a_fn.sig.ident);
         let mut mut_a_fn = a_fn.clone();
         visitor.visit_item_fn_mut(&mut mut_a_fn);
         converted_fns.push(mut_a_fn);
     }
-    //println!("fsm1: converted_fns={:#?}", converted_fns);
+    //println!("hsm1: converted_fns={:#?}", converted_fns);
 
     let output = quote!(
         use std::collections::VecDeque;
 
         //#[derive(Debug)]
         #[derive(Default)] // TODO: This default should be private as new must be used
-        struct #fsm_ident {
+        struct #hsm_ident {
             sm: SM, // Why is this not seen by vscode code completion?
 
             #(
                 #[allow(unused)]
-                #fsm_fields
+                #hsm_fields
             ),*
         }
 
-        impl #fsm_ident {
+        impl #hsm_ident {
             pub fn new() -> Self {
-                let mut sm: #fsm_ident = Default::default();
+                let mut sm: #hsm_ident = Default::default();
 
                 sm.initial_enter_fns_hdls();
 
@@ -365,7 +440,7 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
                 self.setup_exit_fns_hdls(exit_sentinel);
             }
 
-            // TODO: Not sure this is worth it, if it is consider adding fsm_name()
+            // TODO: Not sure this is worth it, if it is consider adding hsm_name()
             fn state_name(&self) -> &str {
                 &self.sm.state_fns[self.sm.current_state_fns_hdl].name
             }
@@ -429,9 +504,9 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
             }
         }
 
-        type StateFn = fn(&mut #fsm_ident, /* &Protocol1 */) -> StateResult;
-        type StateFnEnter = fn(&mut #fsm_ident, /* &Protocol1 */);
-        type StateFnExit = fn(&mut #fsm_ident, /* &Protocol1 */);
+        type StateFn = fn(&mut #hsm_ident, /* &Protocol1 */) -> StateResult;
+        type StateFnEnter = fn(&mut #hsm_ident, /* &Protocol1 */);
+        type StateFnExit = fn(&mut #hsm_ident, /* &Protocol1 */);
         type StateFnsHdl = usize;
 
         enum StateResult {
@@ -452,7 +527,7 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
         //#[derive(Debug)]
         struct SM {
             //name: String, // TODO: dd SM::name
-            state_fns: [StateFns; #fsm_state_fns_len],
+            state_fns: [StateFns; #hsm_state_fns_len],
             enter_fns_hdls: Vec<StateFnsHdl>,
             exit_fns_hdls: VecDeque<StateFnsHdl>,
             current_state_fns_hdl: StateFnsHdl,
@@ -471,11 +546,11 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
                 Self {
                     state_fns: [
                         #(
-                            #fsm_state_fns
+                            #hsm_state_fns
                         ),*
                     ],
-                    enter_fns_hdls: Vec::<StateFnsHdl>::with_capacity(#fsm_state_fns_len),
-                    exit_fns_hdls: VecDeque::<StateFnsHdl>::with_capacity(#fsm_state_fns_len),
+                    enter_fns_hdls: Vec::<StateFnsHdl>::with_capacity(#hsm_state_fns_len),
+                    exit_fns_hdls: VecDeque::<StateFnsHdl>::with_capacity(#hsm_state_fns_len),
                     current_state_fns_hdl: #initial_state_hdl,
                     previous_state_fns_hdl: #initial_state_hdl,
                     current_state_changed: true,
@@ -483,9 +558,9 @@ pub fn fsm1(input: TokenStream) -> TokenStream {
             }
         }
     );
-    //println!("fsm1: output={:#?}", output);
+    //println!("hsm1: output={:#?}", output);
 
-    //println!("fsm1:-");
+    //println!("hsm1:-");
     output.into()
 }
 
@@ -510,8 +585,8 @@ pub fn not_handled(_item: TokenStream) -> TokenStream {
 }
 
 struct Visitor {
-    fsm_ident: syn::Ident,
-    fsm_state_fn_ident_map: HashMap<String, usize>,
+    hsm_ident: syn::Ident,
+    hsm_state_fn_ident_map: HashMap<String, usize>,
 }
 
 impl VisitMut for Visitor {
@@ -532,12 +607,12 @@ impl VisitMut for Visitor {
                         panic!("transition_to! may have only one parameter, the name of the state")
                     }
                     let parameter = token.to_string();
-                    if let Some(hdl) = self.fsm_state_fn_ident_map.get(&parameter) {
-                        //println!("Visitor::visit_macro_mut: Found {} in {} with index {}", parameter, self.fsm_ident, hdl);
+                    if let Some(hdl) = self.hsm_state_fn_ident_map.get(&parameter) {
+                        //println!("Visitor::visit_macro_mut: Found {} in {} with index {}", parameter, self.hsm_ident, hdl);
                         node.tokens = quote!(#hdl);
                         return;
                     } else {
-                        panic!("No state named {} in {}", parameter, self.fsm_ident);
+                        panic!("No state named {} in {}", parameter, self.hsm_ident);
                     }
                 } else {
                     // TODO: improve error handling
@@ -549,6 +624,6 @@ impl VisitMut for Visitor {
         // Delegate to the default impl to visit any nested macros.
         visit_mut::visit_macro_mut(self, node);
 
-        //println!("Visitor::visit_macro_mut:- fsm_ident={} node={:?}",fsm_ident, node);
+        //println!("Visitor::visit_macro_mut:- hsm_ident={} node={:?}",hsm_ident, node);
     }
 }
