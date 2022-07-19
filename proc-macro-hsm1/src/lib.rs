@@ -158,52 +158,43 @@ impl Parse for Hsm1 {
 ///
 /// # Examples
 ///
-/// The simplest HSM is just Finite State Machine (FSM) with a single
-/// state and no hierarchical structure.
+/// Two examples; MyFsm is the simplest FSM of just one state.
+/// MyHsm is the simplest HSM with two states initial with base
+/// as its parent.
 ///
-/// ```
-/// use proc_macro_hsm1::{hsm1, hsm1_state, handled};
+/// ```ignore // Ignore because clippy warnings of neeless main
+/// use proc_macro_hsm1::{handled, hsm1, hsm1_state, not_handled};
+///
+/// // These two use's needed as hsm1 is dependent upon them.
+/// // How can hsm1 proc_macro signify the dependency?
+/// use std::collections::VecDeque;
+/// use sm::{StateResult, StateFnsHdl};
 ///
 /// hsm1!(
-///     #[derive(Debug)]
 ///     struct MyFsm {
-///         count: u64,
+///         initial_counter: u64,
 ///     }
 ///
 ///     #[hsm1_state]
 ///     fn initial(&mut self) -> StateResult {
 ///         // Mutate the state
-///         self.count += 1;
+///         self.initial_counter += 1;
 ///
-///         // Return the desired StateResult
+///         // Let the parent state handle all invocations
 ///         handled!()
 ///     }
 /// );
 ///
-/// fn main() {
-///     let mut fsm = MyFsm::new();
-///
-///     fsm.dispatch();
-///     println!("fsm: fsm.count={}", fsm.count);
-///     assert_eq!(fsm.count, 1);
-/// }
-/// ```
-///
-/// Here is the simplest HSM with two states
-/// ```
-/// use proc_macro_hsm1::{hsm1, hsm1_state, handled, not_handled};
-///
 /// hsm1!(
-///     #[derive(Debug)]
 ///     struct MyHsm {
-///         base_count: u64,
-///         initial_count: u64,
+///         base_counter: u64,
+///         initial_counter: u64,
 ///     }
 ///
 ///     #[hsm1_state]
 ///     fn base(&mut self) -> StateResult {
 ///         // Mutate the state
-///         self.base_count += 1;
+///         self.base_counter += 1;
 ///
 ///         // Return the desired StateResult
 ///         handled!()
@@ -212,7 +203,7 @@ impl Parse for Hsm1 {
 ///     #[hsm1_state(base)]
 ///     fn initial(&mut self) -> StateResult {
 ///         // Mutate the state
-///         self.initial_count += 1;
+///         self.initial_counter += 1;
 ///
 ///         // Let the parent state handle all invocations
 ///         not_handled!()
@@ -220,12 +211,21 @@ impl Parse for Hsm1 {
 /// );
 ///
 /// fn main() {
+///     let mut fsm = MyFsm::new();
+///
+///     fsm.dispatch();
+///     println!( "fsm: fsm intial_counter={}", fsm.initial_counter);
+///     assert_eq!(fsm.initial_counter, 1);
+///
 ///     let mut hsm = MyHsm::new();
 ///
 ///     hsm.dispatch();
-///     println!("hsm: hsm base_count={} intial_count={}", hsm.base_count, hsm.initial_count);
-///     assert_eq!(hsm.base_count, 1);
-///     assert_eq!(hsm.initial_count, 1);
+///     println!(
+///         "hsm: hsm base_counter={} intial_counter={}",
+///         hsm.base_counter, hsm.initial_counter
+///     );
+///     assert_eq!(hsm.base_counter, 1);
+///     assert_eq!(hsm.initial_counter, 1);
 /// }
 /// ```
 #[proc_macro]
@@ -340,10 +340,25 @@ pub fn hsm1(input: TokenStream) -> TokenStream {
         //use std::collections::VecDeque;
         //use sm::{StateResult, StateFnsHdl};
 
+        // error: implementation of `Debug` is not general enough
+        //   --> proc-macro-hsm1/src/main.rs:8:1
+        //    |
+        // 8  | / hsm1!(
+        // 9  | |     #[derive(Debug)]
+        // 10 | |     struct MyFsm {
+        // 11 | |         initial_counter: u64,
+        // ...  |
+        // 21 | |     }
+        // 22 | | );
+        //    | |_^ implementation of `Debug` is not general enough
+        //    |
+        //    = note: `Debug` would have to be implemented for the type `for<'r> fn(&'r mut MyFsm)`
+        //    = note: ...but `Debug` is actually implemented for the type `fn(&'0 mut MyFsm)`, for some specific lifetime `'0`
+        //    = note: this error originates in the derive macro `Debug` (in Nightly builds, run with -Z macro-backtrace for more info)
         //#[derive(Debug)]
-        #[derive(Default)] // TODO: This default should be private as new must be used
+        #[derive(Default)]
         struct #hsm_ident {
-            sm: #state_machine_info, // Why is this not seen by vscode code completion?
+            smi: #state_machine_info,
 
             #(
                 #[allow(unused)]
@@ -353,11 +368,11 @@ pub fn hsm1(input: TokenStream) -> TokenStream {
 
         impl #hsm_ident {
             pub fn new() -> Self {
-                let mut sm: #hsm_ident = Default::default();
+                let mut smi: #hsm_ident = Default::default();
 
-                sm.initial_enter_fns_hdls();
+                smi.initial_enter_fns_hdls();
 
-                sm
+                smi
             }
 
             #(
@@ -368,11 +383,11 @@ pub fn hsm1(input: TokenStream) -> TokenStream {
             // When the state machine starts there will be no fn's to
             // exit so we initialize only the enter_fns_hdls.
             fn initial_enter_fns_hdls(&mut self) {
-                let mut enter_hdl = self.sm.current_state_fns_hdl;
+                let mut enter_hdl = self.smi.current_state_fns_hdl;
                 loop {
                     //println!("initial_enter_fns_hdls: push(enter_hdl={})", enter_hdl);
-                    self.sm.enter_fns_hdls.push(enter_hdl);
-                    enter_hdl = if let Some(hdl) = self.sm.state_fns[enter_hdl].parent {
+                    self.smi.enter_fns_hdls.push(enter_hdl);
+                    enter_hdl = if let Some(hdl) = self.smi.state_fns[enter_hdl].parent {
                         hdl
                     } else {
                         break;
@@ -387,10 +402,10 @@ pub fn hsm1(input: TokenStream) -> TokenStream {
             // up to but not including the exit_sentinel.
             fn setup_exit_fns_hdls(&mut self, exit_sentinel: Option<usize>) {
 
-                let mut exit_hdl = self.sm.current_state_fns_hdl;
+                let mut exit_hdl = self.smi.current_state_fns_hdl;
                 loop {
                     //println!("setup_exit_fns_hdls: push_back(exit_hdl={})", exit_hdl);
-                    self.sm.exit_fns_hdls.push_back(exit_hdl);
+                    self.smi.exit_fns_hdls.push_back(exit_hdl);
 
                     if Some(exit_hdl) == exit_sentinel {
                         // This handles the special case where we're transitioning to ourself
@@ -399,7 +414,7 @@ pub fn hsm1(input: TokenStream) -> TokenStream {
                     }
 
                     // Getting parents handle
-                    exit_hdl = if let Some(hdl) = self.sm.state_fns[exit_hdl].parent {
+                    exit_hdl = if let Some(hdl) = self.smi.state_fns[exit_hdl].parent {
                         hdl
                     } else {
                         // No parent we're done
@@ -421,9 +436,9 @@ pub fn hsm1(input: TokenStream) -> TokenStream {
                 // Setup the enter vector
                 let exit_sentinel = loop {
                     //println!("setup_exit_enter_fns_hdls: push(cur_hdl={})", cur_hdl);
-                    self.sm.enter_fns_hdls.push(cur_hdl);
+                    self.smi.enter_fns_hdls.push(cur_hdl);
 
-                    cur_hdl = if let Some(hdl) = self.sm.state_fns[cur_hdl].parent {
+                    cur_hdl = if let Some(hdl) = self.smi.state_fns[cur_hdl].parent {
                         //println!("setup_exit_enter_fns_hdls: cur_hdl={}", cur_hdl);
                         hdl
                     } else {
@@ -432,7 +447,7 @@ pub fn hsm1(input: TokenStream) -> TokenStream {
                         break None;
                     };
 
-                    if self.sm.state_fns[cur_hdl].active {
+                    if self.smi.state_fns[cur_hdl].active {
                         // Exit state_fns[self.current_state_fns_hdl] and
                         // parents upto but excluding state_fns[cur_hdl]
                         //println!("setup_exit_enter_fns_hdls: set exit_sentinel={}", cur_hdl);
@@ -446,32 +461,32 @@ pub fn hsm1(input: TokenStream) -> TokenStream {
 
             // TODO: Not sure this is worth it, if it is consider adding hsm_name()
             fn state_name(&self) -> &str {
-                &self.sm.state_fns[self.sm.current_state_fns_hdl].name
+                &self.smi.state_fns[self.smi.current_state_fns_hdl].name
             }
 
             fn dispatch_hdl(&mut self, hdl: StateFnsHdl) {
-                if self.sm.current_state_changed {
+                if self.smi.current_state_changed {
                     // Execute the enter functions
-                    while let Some(enter_hdl) = self.sm.enter_fns_hdls.pop() {
-                        if let Some(state_enter) = self.sm.state_fns[enter_hdl].enter {
+                    while let Some(enter_hdl) = self.smi.enter_fns_hdls.pop() {
+                        if let Some(state_enter) = self.smi.state_fns[enter_hdl].enter {
                             //println!("enter while: enter_hdl={} call state_enter={}", enter_hdl, state_enter as usize);
                             (state_enter)(self);
-                            self.sm.state_fns[enter_hdl].active = true;
+                            self.smi.state_fns[enter_hdl].active = true;
                             //println!("enter while: retf state_enter={}", state_enter as usize);
                         } else {
                             //println!("enter while: enter_hdl={} NO ENTER FN", enter_hdl);
                         }
                     }
 
-                    self.sm.current_state_changed = false;
+                    self.smi.current_state_changed = false;
                 }
 
                 let mut transition_dest_hdl = None;
 
-                match (self.sm.state_fns[hdl].process)(self) {
+                match (self.smi.state_fns[hdl].process)(self) {
                     StateResult::NotHandled => {
                         // This handles the special case where we're transitioning to ourself
-                        if let Some(parent_hdl) = self.sm.state_fns[hdl].parent {
+                        if let Some(parent_hdl) = self.smi.state_fns[hdl].parent {
                             self.dispatch_hdl(parent_hdl);
                         } else {
                             // TODO: Consider calling a "default_handler" when NotHandled and no parent
@@ -482,14 +497,14 @@ pub fn hsm1(input: TokenStream) -> TokenStream {
                     }
                     StateResult::TransitionTo(next_state_hdl) => {
                         self.setup_exit_enter_fns_hdls(next_state_hdl);
-                        self.sm.current_state_changed = true;
+                        self.smi.current_state_changed = true;
                         transition_dest_hdl = Some(next_state_hdl);
                     }
                 }
 
-                if self.sm.current_state_changed {
-                    while let Some(exit_hdl) = self.sm.exit_fns_hdls.pop_front() {
-                        if let Some(state_exit) = self.sm.state_fns[exit_hdl].exit {
+                if self.smi.current_state_changed {
+                    while let Some(exit_hdl) = self.smi.exit_fns_hdls.pop_front() {
+                        if let Some(state_exit) = self.smi.state_fns[exit_hdl].exit {
                             (state_exit)(self);
                         }
                     }
@@ -498,13 +513,13 @@ pub fn hsm1(input: TokenStream) -> TokenStream {
                 if let Some(hdl) = transition_dest_hdl {
                     // Change the previous and current state_fns_hdl after we've
                     // preformed the exit routines so state_name is correct.
-                    self.sm.previous_state_fns_hdl = self.sm.current_state_fns_hdl;
-                    self.sm.current_state_fns_hdl = hdl;
+                    self.smi.previous_state_fns_hdl = self.smi.current_state_fns_hdl;
+                    self.smi.current_state_fns_hdl = hdl;
                 }
             }
 
             pub fn dispatch(&mut self) {
-                self.dispatch_hdl(self.sm.current_state_fns_hdl);
+                self.dispatch_hdl(self.smi.current_state_fns_hdl);
             }
         }
 
@@ -512,6 +527,7 @@ pub fn hsm1(input: TokenStream) -> TokenStream {
         type #state_fn_enter = fn(&mut #hsm_ident, /* &Protocol1 */);
         type #state_fn_exit = fn(&mut #hsm_ident, /* &Protocol1 */);
 
+        //#[derive(Debug)]
         struct #state_info {
             name: String, // TODO: Remove or add StateMachineInfo::name?
             parent: Option<StateFnsHdl>,
