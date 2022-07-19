@@ -54,11 +54,11 @@ impl Parse for Hsm1 {
         //println!("hsm1::parse: fields={:#?}", fields);
 
         // The only thing that should remain are functions
-        struct StateFnInfo {
-            idx: usize,
+        struct StateFnHdlAndParent {
+            hdl: usize,
             parent_ident: Option<syn::Ident>,
         }
-        let mut state_fn_info = Vec::<StateFnInfo>::new();
+        let mut state_fn_hdl_and_parent = Vec::<StateFnHdlAndParent>::new();
         let mut fns = Vec::<syn::ItemFn>::new();
         let mut fn_map = HashMap::<String, usize>::new();
         while let Ok(a_fn) = input.parse::<syn::ItemFn>() {
@@ -94,8 +94,8 @@ impl Parse for Hsm1 {
                         }
 
                         // Save the index of this function in state_fn_hdls
-                        state_fn_info.push(StateFnInfo {
-                            idx: fns.len(),
+                        state_fn_hdl_and_parent.push(StateFnHdlAndParent {
+                            hdl: fns.len(),
                             parent_ident: if let Ok(fa) = a.parse_args::<Hsm1Args>() {
                                 fa.arg_ident
                             } else {
@@ -115,8 +115,8 @@ impl Parse for Hsm1 {
 
         let mut state_fn_idents_map = HashMap::<String, usize>::new();
         let mut state_fn_idents = Vec::<StateFnIdents>::new();
-        for state_fn_info in state_fn_info {
-            let item_fn = &fns[state_fn_info.idx];
+        for state_fn_info in state_fn_hdl_and_parent {
+            let item_fn = &fns[state_fn_info.hdl];
             let process_fn_ident = item_fn.sig.ident.clone();
 
             let enter_fn_ident = new_ident(process_fn_ident.clone(), "_enter");
@@ -250,9 +250,16 @@ pub fn hsm1(input: TokenStream) -> TokenStream {
     let hsm_state_fn_ident_map = hsm.hsm_state_fn_ident_map;
     //println!("hsm1: hsm_state_fn_ident_map={:?}", _hsm_state_fn_ident_map);
 
+    let state_fn = new_ident(hsm_ident.clone(), "StateFn");
+    let state_fn_enter = new_ident(hsm_ident.clone(), "StateFnEnter");
+    let state_fn_exit = new_ident(hsm_ident.clone(), "StateFnExit");
+    let state_info = new_ident(hsm_ident.clone(), "StateInfo");
+    let state_machine_info = new_ident(hsm_ident.clone(), "StateMachineInfo");
+
     let hsm_state_fn_idents = hsm.hsm_state_fn_idents;
     let mut hsm_state_fns = Vec::<syn::ExprStruct>::new();
     let mut hsm_initial_state_fns_hdl: Option<usize> = None;
+
     for sfn in &hsm_state_fn_idents {
         //println!("hsm1: sf={:#?}", sfn);
 
@@ -288,7 +295,7 @@ pub fn hsm1(input: TokenStream) -> TokenStream {
         //println!("hsm1: exit_fn={}", exit_fn);
 
         let ts: TokenStream2 = quote!(
-            StateFns {
+            #state_info {
                 name: stringify!(#process_fn_ident).to_owned(),
                 parent: #parent_hdl,
                 enter: #enter_fn,
@@ -328,12 +335,15 @@ pub fn hsm1(input: TokenStream) -> TokenStream {
     //println!("hsm1: converted_fns={:#?}", converted_fns);
 
     let output = quote!(
-        use std::collections::VecDeque;
+        // We need these but can't import them multiple times
+        // How do we automatically derive proc_macro dependencies?
+        //use std::collections::VecDeque;
+        //use sm::{StateResult, StateFnsHdl};
 
         //#[derive(Debug)]
         #[derive(Default)] // TODO: This default should be private as new must be used
         struct #hsm_ident {
-            sm: SM, // Why is this not seen by vscode code completion?
+            sm: #state_machine_info, // Why is this not seen by vscode code completion?
 
             #(
                 #[allow(unused)]
@@ -371,7 +381,7 @@ pub fn hsm1(input: TokenStream) -> TokenStream {
             }
 
             // Starting at self.current_state_fns_hdl generate the
-            // list of StateFns that we're going to exit. If exit_sentinel is None
+            // list of StateInfo that we're going to exit. If exit_sentinel is None
             // then exit from current_state_fns_hdl and all of its parents.
             // If exit_sentinel is Some then exit from the current state_fns_hdl
             // up to but not including the exit_sentinel.
@@ -498,23 +508,23 @@ pub fn hsm1(input: TokenStream) -> TokenStream {
             }
         }
 
-        type StateFn = fn(&mut #hsm_ident, /* &Protocol1 */) -> StateResult;
-        type StateFnEnter = fn(&mut #hsm_ident, /* &Protocol1 */);
-        type StateFnExit = fn(&mut #hsm_ident, /* &Protocol1 */);
+        type #state_fn = fn(&mut #hsm_ident, /* &Protocol1 */) -> StateResult;
+        type #state_fn_enter = fn(&mut #hsm_ident, /* &Protocol1 */);
+        type #state_fn_exit = fn(&mut #hsm_ident, /* &Protocol1 */);
 
-        struct StateFns {
-            name: String, // TODO: Remove or add SM::name?
+        struct #state_info {
+            name: String, // TODO: Remove or add StateMachineInfo::name?
             parent: Option<StateFnsHdl>,
-            enter: Option<StateFnEnter>,
-            process: StateFn,
-            exit: Option<StateFnExit>,
+            enter: Option<#state_fn_enter>,
+            process: #state_fn,
+            exit: Option<#state_fn_exit>,
             active: bool,
         }
 
         //#[derive(Debug)]
-        struct SM {
-            //name: String, // TODO: dd SM::name
-            state_fns: [StateFns; #hsm_state_fns_len],
+        struct #state_machine_info {
+            //name: String, // TODO: add StateMachineInfo::name
+            state_fns: [#state_info; #hsm_state_fns_len],
             enter_fns_hdls: Vec<StateFnsHdl>,
             exit_fns_hdls: VecDeque<StateFnsHdl>,
             current_state_fns_hdl: StateFnsHdl,
@@ -522,13 +532,13 @@ pub fn hsm1(input: TokenStream) -> TokenStream {
             current_state_changed: bool,
         }
 
-        impl Default for SM {
+        impl Default for #state_machine_info {
             fn default() -> Self {
                 Self::new()
             }
         }
 
-        impl SM {
+        impl #state_machine_info {
             fn new() -> Self {
                 Self {
                     state_fns: [

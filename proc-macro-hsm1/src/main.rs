@@ -1,9 +1,29 @@
 use proc_macro_hsm1::{handled, hsm1, hsm1_state, not_handled};
+
+// These two use's needed as hsm1 is dependent upon them.
+// How can hsm1 proc_macro signify the dependency?
+use std::collections::VecDeque;
 use sm::{StateResult, StateFnsHdl};
 
 hsm1!(
     #[derive(Debug)]
     struct MyFsm {
+        initial_counter: u64,
+    }
+
+    #[hsm1_state]
+    fn initial(&mut self) -> StateResult {
+        // Mutate the state
+        self.initial_counter += 1;
+
+        // Let the parent state handle all invocations
+        handled!()
+    }
+);
+
+hsm1!(
+    #[derive(Debug)]
+    struct MyHsm {
         base_counter: u64,
         initial_counter: u64,
     }
@@ -28,26 +48,21 @@ hsm1!(
 );
 
 fn main() {
-    // Verify we can "see" sm
-    let sfh: StateFnsHdl = 0;
-    let sr: StateResult = StateResult::TransitionTo(32);
-
-    println!("sfh={}", sfh);
-    match sr {
-        StateResult::Handled => println!("Handled"),
-        StateResult::NotHandled => println!("NoHandled"),
-        StateResult::TransitionTo(x) => println!("TransitionTo({x})"),
-    }
-
     let mut fsm = MyFsm::new();
 
     fsm.dispatch();
-    println!(
-        "fsm: fsm base_counter={} intial_counter={}",
-        fsm.base_counter, fsm.initial_counter
-    );
-    assert_eq!(fsm.base_counter, 1);
+    println!( "fsm: fsm intial_counter={}", fsm.initial_counter);
     assert_eq!(fsm.initial_counter, 1);
+
+    let mut hsm = MyHsm::new();
+
+    hsm.dispatch();
+    println!(
+        "hsm: hsm base_counter={} intial_counter={}",
+        hsm.base_counter, hsm.initial_counter
+    );
+    assert_eq!(hsm.base_counter, 1);
+    assert_eq!(hsm.initial_counter, 1);
 }
 
 //use proc_macro_fsm1::{fsm1, hsm1_state, handled, not_handled, transition_to};
