@@ -501,13 +501,6 @@ pub fn hsm1(input: TokenStream) -> TokenStream {
         type StateFn = fn(&mut #hsm_ident, /* &Protocol1 */) -> StateResult;
         type StateFnEnter = fn(&mut #hsm_ident, /* &Protocol1 */);
         type StateFnExit = fn(&mut #hsm_ident, /* &Protocol1 */);
-        type StateFnsHdl = usize;
-
-        enum StateResult {
-            NotHandled,
-            Handled,
-            TransitionTo(StateFnsHdl),
-        }
 
         struct StateFns {
             name: String, // TODO: Remove or add SM::name?

@@ -1,4 +1,5 @@
 use proc_macro_hsm1::{handled, hsm1, hsm1_state, not_handled};
+use sm::{StateResult, StateFnsHdl};
 
 hsm1!(
     #[derive(Debug)]
@@ -27,6 +28,17 @@ hsm1!(
 );
 
 fn main() {
+    // Verify we can "see" sm
+    let sfh: StateFnsHdl = 0;
+    let sr: StateResult = StateResult::TransitionTo(32);
+
+    println!("sfh={}", sfh);
+    match sr {
+        StateResult::Handled => println!("Handled"),
+        StateResult::NotHandled => println!("NoHandled"),
+        StateResult::TransitionTo(x) => println!("TransitionTo({x})"),
+    }
+
     let mut fsm = MyFsm::new();
 
     fsm.dispatch();

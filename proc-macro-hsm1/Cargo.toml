@@ -11,3 +11,4 @@ syn = { version = "1.0", features = ["extra-traits", "full", "parsing", "visit-m
 quote = "1.0"
 proc-macro2 = "1.0"
 lazy_static = "1.4.0"
+sm = { path = "../../sm" }
