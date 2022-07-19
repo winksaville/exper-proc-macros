@@ -119,12 +119,6 @@ impl Parse for Hsm1 {
             let item_fn = &fns[state_fn_info.idx];
             let process_fn_ident = item_fn.sig.ident.clone();
 
-            let new_ident = |ident: syn::Ident, suffix: &str| {
-                syn::Ident::new(
-                    (ident.to_string() + suffix.to_owned().as_str()).as_str(),
-                    ident.span(),
-                )
-            };
             let enter_fn_ident = new_ident(process_fn_ident.clone(), "_enter");
             let exit_fn_ident = new_ident(process_fn_ident.clone(), "_exit");
 
@@ -582,6 +576,13 @@ pub fn handled(_item: TokenStream) -> TokenStream {
 pub fn not_handled(_item: TokenStream) -> TokenStream {
     //println!("proc_macro not_handled!: item={:?}", item);
     quote!(StateResult::NotHandled).into()
+}
+
+fn new_ident(ident: syn::Ident, suffix: &str) -> syn::Ident {
+    syn::Ident::new(
+        (ident.to_string() + suffix.to_owned().as_str()).as_str(),
+        ident.span(),
+    )
 }
 
 struct Visitor {
