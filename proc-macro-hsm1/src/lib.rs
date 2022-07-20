@@ -168,7 +168,7 @@ impl Parse for Hsm1 {
 /// // These two use's needed as hsm1 is dependent upon them.
 /// // How can hsm1 proc_macro signify the dependency?
 /// use std::collections::VecDeque;
-/// use sm::{StateResult, StateFnsHdl};
+/// use state_result::*;
 ///
 /// hsm1!(
 ///     struct MyFsm {

@@ -1,6 +1,6 @@
 use proc_macro_hsm1::{hsm1, hsm1_state, handled, not_handled, transition_to};
 use std::collections::VecDeque;
-use sm::{StateResult, StateFnsHdl};
+use state_result::*;
 
 hsm1!(
     struct MyFsm {
@@ -100,7 +100,7 @@ fn main() {
 mod tests {
     use proc_macro_hsm1::{hsm1, hsm1_state, handled, not_handled, transition_to};
     use std::collections::VecDeque;
-    use sm::{StateResult, StateFnsHdl};
+    use state_result::*;
 
     #[test]
     fn test_initialization_via_default() {
